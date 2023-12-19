@@ -1,13 +1,13 @@
 package pkg;
 class Outer {
-    void m(InnerClass p_1) {
-        System.out.println(p_1);
+    void m(InnerClass innerClass) {
+        System.out.println(innerClass);
     }
     class InnerClass {
-        void m(SamePkgClass p_1) {
+        void m(SamePkgClass samePkgClass) {
             class MethodClass {
-                void m(DefaultPkgClass p_2) {
-                    System.out.println(p_1 + " " + p_2);
+                void m(DefaultPkgClass defaultPkgClass) {
+                    System.out.println(samePkgClass + " " + defaultPkgClass);
                 }
             }
         }

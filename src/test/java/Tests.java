@@ -44,10 +44,14 @@ public class Tests {
                     continue;
                 }
 
-                var actualFile = new String(zipFile.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8);
-                var expectedFile = Files.readString(expectedDir.resolve(entry.getName()), StandardCharsets.UTF_8);
+                var actualFile = normalizeLines(new String(zipFile.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8));
+                var expectedFile = normalizeLines(Files.readString(expectedDir.resolve(entry.getName()), StandardCharsets.UTF_8));
                 assertEquals(expectedFile, actualFile);
             }
         }
+    }
+
+    private String normalizeLines(String s) {
+        return s.replaceAll("\r\n", "\n");
     }
 }
