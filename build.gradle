@@ -5,7 +5,7 @@ plugins {
     id 'net.neoforged.gradleutils'
 }
 
-group = 'net.neoforged'
+group = "net.neoforged"
 project.version = gradleutils.version
 
 jar {
@@ -43,4 +43,26 @@ test {
 
 assemble.configure {
     dependsOn shadowJar
+}
+
+// This skips the shadowjar from being published as part of the normal publication
+components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
+    skip()
+}
+
+publishing {
+    publications {
+        // This publication only contains the unshaded jar with dependencies in the pom.xml
+        plain(MavenPublication) {
+            artifactId = 'apply-parchment'
+
+            from components.java
+        }
+        // This publication only contains the shaded standalone jar
+        bundle(MavenPublication) {
+            artifactId = 'apply-parchment-bundle'
+
+            project.shadow.component(bundle)
+        }
+    }
 }
