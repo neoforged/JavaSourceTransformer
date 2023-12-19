@@ -1,2 +1,10 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+    plugins {
+        id 'com.github.johnrengelman.shadow' version '8.1.1'
+        id 'net.neoforged.gradleutils' version '3.0.0-alpha.8'
+    }
+}
 rootProject.name = 'ApplyParchmentToSourceJar'
-
