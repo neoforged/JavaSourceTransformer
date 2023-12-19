@@ -9,12 +9,17 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 class OrderedWorkQueue implements AutoCloseable {
-    private static final int MAX_PENDING_WORK = 25;
-    private final Deque<Future<WorkResult>> pending = new ArrayDeque<>(MAX_PENDING_WORK);
+    private final Deque<Future<WorkResult>> pending;
     private final ZipOutputStream zout;
+    private final int maxQueueDepth;
 
-    public OrderedWorkQueue(ZipOutputStream zout) {
+    public OrderedWorkQueue(ZipOutputStream zout, int maxQueueDepth) {
         this.zout = zout;
+        this.maxQueueDepth = maxQueueDepth;
+        if (maxQueueDepth < 0) {
+            throw new IllegalArgumentException("Max queue depth must not be negative");
+        }
+        this.pending = new ArrayDeque<>(maxQueueDepth);
     }
 
     public void submit(ZipEntry entry, byte[] content) throws InterruptedException, IOException {
@@ -25,13 +30,18 @@ class OrderedWorkQueue implements AutoCloseable {
             zout.closeEntry();
         } else {
             // Needs to be queued behind currently queued async work
-            drainTo(MAX_PENDING_WORK - 1);
+            drainTo(maxQueueDepth - 1);
             pending.add(CompletableFuture.completedFuture(new WorkResult(entry, content)));
         }
     }
 
     public void submitAsync(ZipEntry entry, Supplier<byte[]> contentSupplier) throws InterruptedException, IOException {
-        drainTo(MAX_PENDING_WORK - 1);
+        if (maxQueueDepth <= 0) {
+            // Forced into synchronous mode
+            submit(entry, contentSupplier.get());
+            return;
+        }
+        drainTo(maxQueueDepth - 1);
         pending.add(CompletableFuture.supplyAsync(() -> new WorkResult(entry, contentSupplier.get())));
     }
 

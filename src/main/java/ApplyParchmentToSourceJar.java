@@ -26,6 +26,7 @@ import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.augment.PsiAugmentProvider;
+import com.intellij.psi.impl.PsiElementFinderImpl;
 import com.intellij.psi.impl.PsiNameHelperImpl;
 import com.intellij.psi.impl.PsiTreeChangePreprocessor;
 import com.intellij.psi.impl.file.impl.JavaFileManager;
@@ -65,6 +66,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
     private final MockProject project;
     private final JavaCoreProjectEnvironment javaEnv;
     private final PsiFileFactory psiFileFactory;
+    private int maxQueueDepth = 0;
 
     public ApplyParchmentToSourceJar(Path parchmentZipPath) throws IOException {
         parchmentDatabase = openParchmentFile(parchmentZipPath);
@@ -122,6 +124,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
                 JvmElementProvider.EP_NAME,
                 JvmElementProvider.class
         );
+        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), () -> {});
 
         LanguageLevelProjectExtension.getInstance(project).setLanguageLevel(LanguageLevel.JDK_17);
 
@@ -185,7 +188,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
 
         try (var zin = new ZipInputStream(Files.newInputStream(inputPath));
              var fout = Files.newOutputStream(outputPath);
-             var asyncZout = new OrderedWorkQueue(new ZipOutputStream(fout))) {
+             var asyncZout = new OrderedWorkQueue(new ZipOutputStream(fout), maxQueueDepth)) {
 
             for (var entry = zin.getNextEntry(); entry != null; entry = zin.getNextEntry()) {
                 var originalContentBytes = zin.readAllBytes();
