@@ -66,7 +66,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
     private final MockProject project;
     private final JavaCoreProjectEnvironment javaEnv;
     private final PsiFileFactory psiFileFactory;
-    private int maxQueueDepth = 0;
+    private int maxQueueDepth = 50;
 
     public ApplyParchmentToSourceJar(Path parchmentZipPath) throws IOException {
         parchmentDatabase = openParchmentFile(parchmentZipPath);
