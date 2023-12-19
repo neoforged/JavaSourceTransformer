@@ -9,8 +9,10 @@ import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.application.TransactionGuard;
 import com.intellij.openapi.application.TransactionGuardImpl;
 import com.intellij.openapi.roots.LanguageLevelProjectExtension;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.impl.ZipHandler;
 import com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaModuleSystem;
@@ -46,9 +48,6 @@ import java.util.zip.ZipOutputStream;
  * https://github.com/JetBrains/kotlin/blob/22aa9ee65f759ad21aeaeb8ad9ac0b123b2c32fe/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt#L108
  */
 public class ApplyParchmentToSourceJar implements AutoCloseable {
-
-    private static final Disposable NOOP_DISPOSABLE = () -> {
-    };
     private final NamesAndDocsDatabase namesAndDocs;
 
     private final Path tempDir;
@@ -57,19 +56,21 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
     private final PsiManager psiManager;
     private int maxQueueDepth = 50;
     private boolean enableJavadoc = true;
+    private final Disposable rootDisposable;
 
-    public ApplyParchmentToSourceJar(Path namesAndDocsPath) throws IOException {
-        namesAndDocs = NameAndDocSourceLoader.load(namesAndDocsPath);
+    public ApplyParchmentToSourceJar(NamesAndDocsDatabase namesAndDocs) throws IOException {
+        this.namesAndDocs = namesAndDocs;
         tempDir = Files.createTempDirectory("applyparchment");
+        this.rootDisposable = Disposer.newDisposable();
 
         // IDEA requires a config directory, even if it's empty
         PathManager.setExplicitConfigPath(tempDir.toAbsolutePath().toString());
         Registry.markAsLoaded(); // Avoids warnings about config not being loaded
 
-        var appEnv = new JavaCoreApplicationEnvironment(NOOP_DISPOSABLE);
+        var appEnv = new JavaCoreApplicationEnvironment(rootDisposable);
         initAppExtensionsAndServices(appEnv);
 
-        javaEnv = new JavaCoreProjectEnvironment(NOOP_DISPOSABLE, appEnv);
+        javaEnv = new JavaCoreProjectEnvironment(rootDisposable, appEnv);
 
         project = javaEnv.getProject();
 
@@ -139,7 +140,11 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
             System.exit(1);
         }
 
-        try (var applyParchment = new ApplyParchmentToSourceJar(namesAndDocsPath)) {
+        var namesAndDocs = NameAndDocSourceLoader.load(namesAndDocsPath);
+
+        try (var applyParchment = new ApplyParchmentToSourceJar(namesAndDocs)) {
+            applyParchment.setMaxQueueDepth(queueDepth);
+            applyParchment.setEnableJavadoc(enableJavadoc);
             applyParchment.apply(inputPath, outputPath);
         }
     }
@@ -155,7 +160,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         out.println("  --help                 Print help");
     }
 
-    private void apply(Path inputPath, Path outputPath) throws IOException, InterruptedException {
+    public void apply(Path inputPath, Path outputPath) throws IOException, InterruptedException {
 
         var sourceJarRoot = javaEnv.getEnvironment().getJarFileSystem().findFileByPath(inputPath + "!/");
         if (sourceJarRoot == null) {
@@ -198,7 +203,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         }
     }
 
-    private byte[] transformSource(VirtualFile contentRoot, String path, byte[] originalContentBytes) {
+    byte[] transformSource(VirtualFile contentRoot, String path, byte[] originalContentBytes) {
         // Instead of parsing the content we actually read from the file, we read the virtual file that is
         // visible to IntelliJ from adding the source jar. The reasoning is that IntelliJ will cache this internally
         // and reuse it when cross-referencing type-references. If we parsed from a String instead, it would parse
@@ -280,7 +285,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, PsiTreeChangePreprocessor.EP.getName(), PsiTreeChangePreprocessor.class);
         CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, PsiElementFinder.EP.getName(), PsiElementFinder.class);
         CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, JvmElementProvider.EP_NAME, JvmElementProvider.class);
-        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), NOOP_DISPOSABLE);
+        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), rootDisposable);
     }
 
     /*
@@ -293,7 +298,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
      * - Extension points not marked as area="IDEA_PROJECT"
      * - Any extensions registered for extension points that are not marked area="IDEA_PROJECT"
      */
-    private static void initAppExtensionsAndServices(JavaCoreApplicationEnvironment appEnv) {
+    private void initAppExtensionsAndServices(JavaCoreApplicationEnvironment appEnv) {
         // When any service or extension point is missing, check JavaPsiPlugin.xml in classpath and grab the definition
         appEnv.registerApplicationService(JavaClassSupers.class, new com.intellij.psi.impl.JavaClassSupersImpl());
         appEnv.registerApplicationService(InternalPersistentJavaLanguageLevelReaderService.class, new InternalPersistentJavaLanguageLevelReaderService.DefaultImpl());
@@ -303,11 +308,22 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         CoreApplicationEnvironment.registerExtensionPoint(appExtensions, PsiAugmentProvider.EP_NAME, PsiAugmentProvider.class);
         CoreApplicationEnvironment.registerExtensionPoint(appExtensions, JavaModuleSystem.EP_NAME, JavaModuleSystem.class);
         CoreApplicationEnvironment.registerExtensionPoint(appExtensions, TreeGenerator.EP_NAME, TreeGenerator.class);
-        appExtensions.getExtensionPoint(TreeGenerator.EP_NAME).registerExtension(new JavaTreeGenerator(), NOOP_DISPOSABLE);
+        appExtensions.getExtensionPoint(TreeGenerator.EP_NAME).registerExtension(new JavaTreeGenerator(), rootDisposable);
+    }
+
+    public void setMaxQueueDepth(int maxQueueDepth) {
+        this.maxQueueDepth = maxQueueDepth;
+    }
+
+    public void setEnableJavadoc(boolean enableJavadoc) {
+        this.enableJavadoc = enableJavadoc;
     }
 
     @Override
     public void close() throws IOException {
+        // Releases cached ZipFiles within IntelliJ, allowing the tempdir to be deleted
+        ZipHandler.clearFileAccessorCache();
+        Disposer.dispose(rootDisposable);
         Files.deleteIfExists(tempDir);
     }
 

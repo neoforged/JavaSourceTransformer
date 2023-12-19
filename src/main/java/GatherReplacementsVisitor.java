@@ -10,8 +10,13 @@ import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiWhiteSpace;
+import com.intellij.psi.SyntaxTraverser;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.util.CachedValueProvider;
+import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.psi.util.ClassUtil;
+import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.util.containers.ObjectIntHashMap;
 import namesanddocs.NamesAndDocsDatabase;
 import namesanddocs.NamesAndDocsForClass;
 import namesanddocs.NamesAndDocsForMethod;
@@ -54,11 +59,15 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
     @Override
     public void visitElement(@NotNull PsiElement element) {
         if (element instanceof PsiClass psiClass) {
+            // This is a sanity check to ensure classes we process are actually findable via the facade and resolve to the same class
+            // If they don't, it means either references may be broken or we're loading classes twice.
             if (psiClass.getQualifiedName() != null) {
                 var psiFacade = JavaPsiFacade.getInstance(element.getProject());
                 var foundClass = psiFacade.findClass(psiClass.getQualifiedName(), GlobalSearchScope.everythingScope(element.getProject()));
-                if (foundClass != psiClass) {
-                    throw new IllegalStateException("DOUBLE LOAD");
+                if (foundClass == null) {
+                    throw new IllegalStateException("Failed to find how class " + psiClass.getQualifiedName() + " was loaded while processing it");
+                } else if (foundClass != psiClass) {
+                    throw new IllegalStateException("Class " + psiClass + " was loaded from two different sources");
                 }
             }
 
@@ -189,14 +198,14 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         if (classData != null) {
             return classData.orElse(null);
         } else {
-            var jvmClassName = ClassUtil.getJVMClassName(psiClass);
-            if (jvmClassName == null) {
+            var sb = new StringBuilder();
+            getBinaryClassName(psiClass, sb);
+            if (sb.isEmpty()) {
                 classData = Optional.empty();
             } else {
-                var className = jvmClassName.replace('.', '/');
-                classData = Optional.ofNullable(namesAndDocs.getClass(className));
+                classData = Optional.ofNullable(namesAndDocs.getClass(sb.toString()));
             }
-            psiClass.putCopyableUserData(CLASS_DATA_KEY, classData);
+            psiClass.putUserData(CLASS_DATA_KEY, classData);
             return classData.orElse(null);
         }
     }
@@ -219,9 +228,47 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 methodData = Optional.ofNullable(classData.getMethod(methodName, methodSignature));
             }
 
-            psiMethod.putCopyableUserData(METHOD_DATA_KEY, methodData);
+            psiMethod.putUserData(METHOD_DATA_KEY, methodData);
             return methodData.orElse(null);
         }
+    }
+
+    /**
+     * An adapted version of {@link ClassUtil#formatClassName(PsiClass, StringBuilder)} where Inner-Classes
+     * use a $ separator while formatClassName separates InnerClasses with periods from their parent.
+     */
+    private static void getBinaryClassName(@NotNull final PsiClass aClass, @NotNull StringBuilder buf) {
+        final String qName = ClassUtil.getJVMClassName(aClass);
+        if (qName != null) {
+            buf.append(qName.replace('.', '/'));
+        } else {
+            final PsiClass parentClass = PsiTreeUtil.getContextOfType(aClass, PsiClass.class, true);
+            if (parentClass != null) {
+                getBinaryClassName(parentClass, buf);
+                buf.append("$");
+                buf.append(getNonQualifiedClassIdx(aClass, parentClass));
+                final String name = aClass.getName();
+                if (name != null) {
+                    buf.append(name);
+                }
+            }
+        }
+    }
+
+    private static int getNonQualifiedClassIdx(@NotNull final PsiClass psiClass, @NotNull final PsiClass containingClass) {
+        var indices =
+                CachedValuesManager.getCachedValue(containingClass, () -> {
+                    var map = new ObjectIntHashMap<PsiClass>();
+                    int index = 0;
+                    for (PsiClass aClass : SyntaxTraverser.psiTraverser().withRoot(containingClass).postOrderDfsTraversal().filter(PsiClass.class)) {
+                        if (aClass.getQualifiedName() == null) {
+                            map.put(aClass, ++index);
+                        }
+                    }
+                    return CachedValueProvider.Result.create(map, containingClass);
+                });
+
+        return indices.get(psiClass);
     }
 
 }

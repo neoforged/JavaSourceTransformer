@@ -12,7 +12,9 @@ import org.parchmentmc.feather.util.SimpleVersion;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipFile;
 
@@ -33,22 +35,30 @@ public class ParchmentDatabase implements NamesAndDocsDatabase {
         }
     }
 
-    public static ParchmentDatabase load(Path parchmentFile) throws IOException {
+    public static ParchmentDatabase loadZip(Path parchmentFile) throws IOException {
         try (var zf = new ZipFile(parchmentFile.toFile())) {
             var parchmentJsonEntry = zf.getEntry("parchment.json");
             if (parchmentJsonEntry == null || parchmentJsonEntry.isDirectory()) {
                 throw new FileNotFoundException("Could not locate parchment.json at the root of ZIP-File " + parchmentFile);
             }
 
-            Gson gson = new GsonBuilder()
-                    .registerTypeAdapterFactory(new MDCGsonAdapterFactory())
-                    .registerTypeAdapter(SimpleVersion.class, new SimpleVersionAdapter())
-                    .create();
-            try (var inputStream = zf.getInputStream(parchmentJsonEntry);
-                 var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
-                return new ParchmentDatabase(gson.fromJson(reader, VersionedMappingDataContainer.class));
+            try (var inputStream = zf.getInputStream(parchmentJsonEntry)) {
+                return loadJson(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
             }
         }
     }
-}
 
+    public static ParchmentDatabase loadJson(Path parchmentFile) throws IOException {
+        try (var reader = Files.newBufferedReader(parchmentFile)) {
+            return loadJson(reader);
+        }
+    }
+
+    public static ParchmentDatabase loadJson(Reader reader) {
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapterFactory(new MDCGsonAdapterFactory())
+                .registerTypeAdapter(SimpleVersion.class, new SimpleVersionAdapter())
+                .create();
+        return new ParchmentDatabase(gson.fromJson(reader, VersionedMappingDataContainer.class));
+    }
+}

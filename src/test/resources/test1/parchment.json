@@ -1,0 +1,50 @@
+{
+  "version": "1.1.0",
+  "classes": [
+    {
+      "name": "pkg/Outer",
+      "methods": [
+        {
+          "name": "m",
+          "descriptor": "(Lpkg/Outer$InnerClass;)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "innerClass"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pkg/Outer$InnerClass",
+      "methods": [
+        {
+          "name": "m",
+          "descriptor": "(Lpkg/SamePkgClass;)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "samePkgClass"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pkg/Outer$InnerClass$1MethodClass",
+      "methods": [
+        {
+          "name": "m",
+          "descriptor": "(LDefaultPkgClass;)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "defaultPkgClass"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
