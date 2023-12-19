@@ -4,20 +4,16 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import namesanddocs.NamesAndDocsDatabase;
 import namesanddocs.NamesAndDocsForClass;
-import namesanddocs.NamesAndDocsForField;
-import namesanddocs.NamesAndDocsForMethod;
-import namesanddocs.NamesAndDocsForParameter;
 import org.parchmentmc.feather.io.gson.MDCGsonAdapterFactory;
 import org.parchmentmc.feather.io.gson.SimpleVersionAdapter;
-import org.parchmentmc.feather.mapping.MappingDataContainer;
 import org.parchmentmc.feather.mapping.VersionedMappingDataContainer;
 import org.parchmentmc.feather.util.SimpleVersion;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.zip.ZipFile;
 
 public class ParchmentDatabase implements NamesAndDocsDatabase {
@@ -48,9 +44,9 @@ public class ParchmentDatabase implements NamesAndDocsDatabase {
                     .registerTypeAdapterFactory(new MDCGsonAdapterFactory())
                     .registerTypeAdapter(SimpleVersion.class, new SimpleVersionAdapter())
                     .create();
-            try (var inputStream = zf.getInputStream(parchmentJsonEntry)) {
-                String jsonString = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-                return new ParchmentDatabase(gson.fromJson(jsonString, VersionedMappingDataContainer.class));
+            try (var inputStream = zf.getInputStream(parchmentJsonEntry);
+                 var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+                return new ParchmentDatabase(gson.fromJson(reader, VersionedMappingDataContainer.class));
             }
         }
     }

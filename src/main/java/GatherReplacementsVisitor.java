@@ -1,3 +1,4 @@
+import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
@@ -13,15 +14,25 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.ClassUtil;
 import namesanddocs.NamesAndDocsDatabase;
 import namesanddocs.NamesAndDocsForClass;
+import namesanddocs.NamesAndDocsForMethod;
 import namesanddocs.NamesAndDocsForParameter;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
+
+    /**
+     * Key for attaching mapping data to a PsiClass. Used to prevent multiple lookups for the same class.
+     */
+    private static final Key<Optional<NamesAndDocsForClass>> CLASS_DATA_KEY = Key.create("names_and_docs_for_class");
+    private static final Key<Optional<NamesAndDocsForMethod>> METHOD_DATA_KEY = Key.create("names_and_docs_for_method");
+
     private final NamesAndDocsDatabase namesAndDocs;
     private final boolean enableJavadoc;
     private final List<Replacement> replacements;
@@ -31,8 +42,6 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
      * this may contain the parameters of multiple scopes simultaneously.
      */
     private final Map<PsiParameter, NamesAndDocsForParameter> activeParameters = new IdentityHashMap<>();
-    PsiClass currentPsiClass;
-    NamesAndDocsForClass currentClass;
 
     public GatherReplacementsVisitor(NamesAndDocsDatabase namesAndDocs,
                                      boolean enableJavadoc,
@@ -53,47 +62,25 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 }
             }
 
-            currentPsiClass = psiClass;
-            var jvmClassName = ClassUtil.getJVMClassName(psiClass);
-            if (jvmClassName == null) {
-                // Anonymous class?
-                currentClass = null;
-            } else {
-                var className = jvmClassName.replace('.', '/');
-                currentClass = namesAndDocs.getClass(className);
-            }
-
-            if (currentClass == null) {
-                return; // Skip classes without mapping data
-            }
-
             // Add javadoc if available
-            applyJavadoc(psiClass, currentClass.getJavadoc(), replacements);
-        } else if (element instanceof PsiField psiField) {
-            // sanity check
-            if (psiField.getContainingClass() != currentPsiClass) {
-                return;
+            var classData = getClassData(psiClass);
+            if (classData != null) {
+                applyJavadoc(psiClass, classData.getJavadoc(), replacements);
             }
-
-            var fieldData = currentClass.getField(psiField.getName());
+        } else if (element instanceof PsiField psiField) {
+            var classData = getClassData(psiField.getContainingClass());
+            var fieldData = classData != null ? classData.getField(psiField.getName()) : null;
             if (fieldData != null) {
                 // Add javadoc if available
                 applyJavadoc(psiField, fieldData.getJavadoc(), replacements);
             }
-        } else if (element instanceof PsiMethod method) {
-            // sanity check
-            if (method.getContainingClass() != currentPsiClass) {
-                return;
-            }
-
-            var methodSignature = ClassUtil.getAsmMethodSignature(method);
-
-            var methodData = currentClass.getMethod(method.getName(), methodSignature);
+        } else if (element instanceof PsiMethod psiMethod) {
+            var methodData = getMethodData(psiMethod);
             if (methodData != null) {
                 // Add javadoc if available
-                applyJavadoc(method, methodData.getJavadoc(), replacements);
+                applyJavadoc(psiMethod, methodData.getJavadoc(), replacements);
 
-                PsiParameter[] parameters = method.getParameterList().getParameters();
+                PsiParameter[] parameters = psiMethod.getParameterList().getParameters();
                 boolean hadReplacements = false;
                 for (int i = 0; i < parameters.length; i++) {
                     var psiParameter = parameters[i];
@@ -191,4 +178,50 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
             }
         }
     }
+
+    @SuppressWarnings("OptionalAssignedToNull")
+    @Nullable
+    private NamesAndDocsForClass getClassData(@Nullable PsiClass psiClass) {
+        if (psiClass == null) {
+            return null;
+        }
+        var classData = psiClass.getUserData(CLASS_DATA_KEY);
+        if (classData != null) {
+            return classData.orElse(null);
+        } else {
+            var jvmClassName = ClassUtil.getJVMClassName(psiClass);
+            if (jvmClassName == null) {
+                classData = Optional.empty();
+            } else {
+                var className = jvmClassName.replace('.', '/');
+                classData = Optional.ofNullable(namesAndDocs.getClass(className));
+            }
+            psiClass.putCopyableUserData(CLASS_DATA_KEY, classData);
+            return classData.orElse(null);
+        }
+    }
+
+    @SuppressWarnings("OptionalAssignedToNull")
+    @Nullable
+    private NamesAndDocsForMethod getMethodData(@Nullable PsiMethod psiMethod) {
+        if (psiMethod == null) {
+            return null;
+        }
+        var methodData = psiMethod.getUserData(METHOD_DATA_KEY);
+        if (methodData != null) {
+            return methodData.orElse(null);
+        } else {
+            methodData = Optional.empty();
+            var classData = getClassData(psiMethod.getContainingClass());
+            if (classData != null) {
+                var methodName = psiMethod.getName();
+                var methodSignature = ClassUtil.getAsmMethodSignature(psiMethod);
+                methodData = Optional.ofNullable(classData.getMethod(methodName, methodSignature));
+            }
+
+            psiMethod.putCopyableUserData(METHOD_DATA_KEY, methodData);
+            return methodData.orElse(null);
+        }
+    }
+
 }
