@@ -155,7 +155,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         out.println("  --out <output-file>    Path where new source-jar will be written");
         out.println("  --names <names-file>   Path to Parchment ZIP-File or merged TSRG2-Mappings");
         out.println("  --skip-javadoc         Don't apply Javadocs");
-        out.println("  --queue-depth          How many source files to wait for in parallel. 0 for synchronous processing.");
+        out.println("  --queue-depth <depth>  How many source files to wait for in parallel. 0 for synchronous processing.");
         out.println("                         0 for synchronous processing. Default is 50.");
         out.println("  --help                 Print help");
     }
