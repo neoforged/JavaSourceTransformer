@@ -1,0 +1,5 @@
+<idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
+    <id>lightjava</id>
+
+    <xi:include href="/META-INF/JavaPsiPlugin.xml" xpointer="xpointer(/idea-plugin/*)"/>
+</idea-plugin>

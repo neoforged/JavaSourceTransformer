@@ -1,0 +1,45 @@
+plugins {
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+mainClassName = 'ApplyParchmentToSourceJar'
+
+distZip.enabled = false
+distTar.enabled = false
+
+repositories {
+    maven {
+        url "https://www.jetbrains.com/intellij-repository/releases/"
+    }
+    maven {
+        url "https://cache-redirector.jetbrains.com/intellij-dependencies/"
+    }
+    maven {
+        url "https://maven.parchmentmc.org/"
+    }
+}
+
+dependencies {
+    implementation 'com.jetbrains.intellij.java:java-psi-impl:233.11799.300'
+
+    implementation 'org.parchmentmc.feather:io-gson:1.1.0'
+
+    testImplementation platform('org.junit:junit-bom:5.9.1')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+assemble.configure {
+    dependsOn shadowJar
+}
