@@ -1,5 +1,3 @@
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.intellij.core.CoreApplicationEnvironment;
 import com.intellij.core.CoreJavaFileManager;
 import com.intellij.core.JavaCoreApplicationEnvironment;
@@ -34,12 +32,10 @@ import com.intellij.psi.impl.source.tree.JavaTreeGenerator;
 import com.intellij.psi.impl.source.tree.TreeGenerator;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
+import namesanddocs.NameAndDocSourceLoader;
+import namesanddocs.NamesAndDocsDatabase;
+import namesanddocs.NamesAndDocsForClass;
 import org.jetbrains.annotations.NotNull;
-import org.parchmentmc.feather.io.gson.MDCGsonAdapterFactory;
-import org.parchmentmc.feather.io.gson.SimpleVersionAdapter;
-import org.parchmentmc.feather.mapping.MappingDataContainer;
-import org.parchmentmc.feather.mapping.VersionedMappingDataContainer;
-import org.parchmentmc.feather.util.SimpleVersion;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -50,7 +46,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
@@ -60,16 +55,17 @@ import java.util.zip.ZipOutputStream;
  */
 public class ApplyParchmentToSourceJar implements AutoCloseable {
 
-    private final VersionedMappingDataContainer parchmentDatabase;
+    private final NamesAndDocsDatabase namesAndDocs;
 
     private final Path tempDir;
     private final MockProject project;
     private final JavaCoreProjectEnvironment javaEnv;
     private final PsiFileFactory psiFileFactory;
     private int maxQueueDepth = 50;
+    private boolean enableJavadoc = true;
 
-    public ApplyParchmentToSourceJar(Path parchmentZipPath) throws IOException {
-        parchmentDatabase = openParchmentFile(parchmentZipPath);
+    public ApplyParchmentToSourceJar(Path namesAndDocsPath) throws IOException {
+        namesAndDocs = NameAndDocSourceLoader.load(namesAndDocsPath);
         tempDir = Files.createTempDirectory("applyparchment");
 
         System.setProperty("idea.config.path", tempDir.toAbsolutePath().toString());
@@ -124,39 +120,22 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
                 JvmElementProvider.EP_NAME,
                 JvmElementProvider.class
         );
-        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), () -> {});
+        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), () -> {
+        });
 
         LanguageLevelProjectExtension.getInstance(project).setLanguageLevel(LanguageLevel.JDK_17);
 
         psiFileFactory = PsiFileFactory.getInstance(project);
     }
 
-    private static VersionedMappingDataContainer openParchmentFile(Path parchmentFile) throws IOException {
-        try (var zf = new ZipFile(parchmentFile.toFile())) {
-            var parchmentJsonEntry = zf.getEntry("parchment.json");
-            if (parchmentJsonEntry == null || parchmentJsonEntry.isDirectory()) {
-                throw new FileNotFoundException("Could not locate parchment.json at the root of ZIP-File " + parchmentFile);
-            }
-
-            Gson gson = new GsonBuilder()
-                    .registerTypeAdapterFactory(new MDCGsonAdapterFactory())
-                    .registerTypeAdapter(SimpleVersion.class, new SimpleVersionAdapter())
-                    .create();
-            try (var inputStream = zf.getInputStream(parchmentJsonEntry)) {
-                String jsonString = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-                return gson.fromJson(jsonString, VersionedMappingDataContainer.class);
-            }
-        }
-    }
-
     public static void main(String[] args) throws Exception {
         System.setProperty("java.awt.headless", "true");
 
         var inputPath = Paths.get(args[0]);
-        var output = Paths.get(args[2]);
-        var parchmentZipPath = Paths.get(args[3]);
+        var output = Paths.get(args[1]);
+        var namesAndDocsPath = Paths.get(args[2]);
 
-        try (var applyParchment = new ApplyParchmentToSourceJar(parchmentZipPath)) {
+        try (var applyParchment = new ApplyParchmentToSourceJar(namesAndDocsPath)) {
             applyParchment.apply(inputPath, output);
         }
 
@@ -213,7 +192,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
 
         var v = new PsiRecursiveElementVisitor() {
             PsiClass currentPsiClass;
-            MappingDataContainer.ClassData currentClass;
+            NamesAndDocsForClass currentClass;
 
             @Override
             public void visitElement(@NotNull PsiElement element) {
@@ -225,7 +204,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
                         currentClass = null;
                     } else {
                         var className = jvmClassName.replace('.', '/');
-                        currentClass = parchmentDatabase.getClass(className);
+                        currentClass = namesAndDocs.getClass(className);
                     }
 
                     if (currentClass == null) {
@@ -326,7 +305,11 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         return writer.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    private static void applyJavadoc(PsiJavaDocumentedElement method, List<String> javadoc, List<Replacement> replacements) {
+    private void applyJavadoc(PsiJavaDocumentedElement method, List<String> javadoc, List<Replacement> replacements) {
+        if (!enableJavadoc) {
+            return;
+        }
+
         if (!javadoc.isEmpty()) {
             var existingDocComment = method.getDocComment();
             if (existingDocComment != null) {
