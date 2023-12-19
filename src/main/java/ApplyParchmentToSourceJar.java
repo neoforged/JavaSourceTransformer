@@ -2,27 +2,21 @@ import com.intellij.core.CoreApplicationEnvironment;
 import com.intellij.core.CoreJavaFileManager;
 import com.intellij.core.JavaCoreApplicationEnvironment;
 import com.intellij.core.JavaCoreProjectEnvironment;
-import com.intellij.lang.java.JavaLanguage;
 import com.intellij.lang.jvm.facade.JvmElementProvider;
 import com.intellij.mock.MockProject;
+import com.intellij.openapi.Disposable;
+import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.application.TransactionGuard;
 import com.intellij.openapi.application.TransactionGuardImpl;
 import com.intellij.openapi.roots.LanguageLevelProjectExtension;
-import com.intellij.openapi.util.TextRange;
+import com.intellij.openapi.util.registry.Registry;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaModuleSystem;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementFinder;
-import com.intellij.psi.PsiField;
-import com.intellij.psi.PsiFileFactory;
-import com.intellij.psi.PsiJavaDocumentedElement;
-import com.intellij.psi.PsiMethod;
+import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiNameHelper;
-import com.intellij.psi.PsiParameter;
-import com.intellij.psi.PsiRecursiveElementVisitor;
-import com.intellij.psi.PsiReferenceExpression;
-import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.impl.PsiElementFinderImpl;
 import com.intellij.psi.impl.PsiNameHelperImpl;
@@ -30,22 +24,20 @@ import com.intellij.psi.impl.PsiTreeChangePreprocessor;
 import com.intellij.psi.impl.file.impl.JavaFileManager;
 import com.intellij.psi.impl.source.tree.JavaTreeGenerator;
 import com.intellij.psi.impl.source.tree.TreeGenerator;
-import com.intellij.psi.util.ClassUtil;
-import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.psi.util.JavaClassSupers;
 import namesanddocs.NameAndDocSourceLoader;
 import namesanddocs.NamesAndDocsDatabase;
-import namesanddocs.NamesAndDocsForClass;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
@@ -55,12 +47,14 @@ import java.util.zip.ZipOutputStream;
  */
 public class ApplyParchmentToSourceJar implements AutoCloseable {
 
+    private static final Disposable NOOP_DISPOSABLE = () -> {
+    };
     private final NamesAndDocsDatabase namesAndDocs;
 
     private final Path tempDir;
     private final MockProject project;
     private final JavaCoreProjectEnvironment javaEnv;
-    private final PsiFileFactory psiFileFactory;
+    private final PsiManager psiManager;
     private int maxQueueDepth = 50;
     private boolean enableJavadoc = true;
 
@@ -68,77 +62,97 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         namesAndDocs = NameAndDocSourceLoader.load(namesAndDocsPath);
         tempDir = Files.createTempDirectory("applyparchment");
 
-        System.setProperty("idea.config.path", tempDir.toAbsolutePath().toString());
+        // IDEA requires a config directory, even if it's empty
+        PathManager.setExplicitConfigPath(tempDir.toAbsolutePath().toString());
+        Registry.markAsLoaded(); // Avoids warnings about config not being loaded
 
-        var appEnv = new JavaCoreApplicationEnvironment(() -> {
-        }) {
-        };
+        var appEnv = new JavaCoreApplicationEnvironment(NOOP_DISPOSABLE);
+        initAppExtensionsAndServices(appEnv);
 
-        // When any service or extension point is missing, check JavaPsiPlugin.xml in classpath and grab the definition
-        appEnv.registerApplicationService(com.intellij.psi.util.JavaClassSupers.class, new com.intellij.psi.impl.JavaClassSupersImpl());
-        appEnv.registerApplicationService(com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService.class, new com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService.DefaultImpl());
-        appEnv.registerApplicationService(TransactionGuard.class, new TransactionGuardImpl());
-
-        CoreApplicationEnvironment.registerExtensionPoint(
-                appEnv.getApplication().getExtensionArea(),
-                PsiAugmentProvider.EP_NAME,
-                PsiAugmentProvider.class
-        );
-        CoreApplicationEnvironment.registerExtensionPoint(
-                appEnv.getApplication().getExtensionArea(),
-                JavaModuleSystem.EP_NAME,
-                JavaModuleSystem.class
-        );
-        CoreApplicationEnvironment.registerExtensionPoint(
-                appEnv.getApplication().getExtensionArea(),
-                TreeGenerator.EP_NAME,
-                TreeGenerator.class
-        );
-        appEnv.getApplication().getExtensionArea().getExtensionPoint(TreeGenerator.EP_NAME).registerExtension(new JavaTreeGenerator());
-
-        javaEnv = new JavaCoreProjectEnvironment(
-                () -> {
-                },
-                appEnv
-        );
+        javaEnv = new JavaCoreProjectEnvironment(NOOP_DISPOSABLE, appEnv);
 
         project = javaEnv.getProject();
-        project.registerService(PsiNameHelper.class, PsiNameHelperImpl.class);
 
-        CoreApplicationEnvironment.registerExtensionPoint(
-                project.getExtensionArea(),
-                PsiTreeChangePreprocessor.EP.getName(),
-                PsiTreeChangePreprocessor.class
-        );
-        CoreApplicationEnvironment.registerExtensionPoint(
-                project.getExtensionArea(),
-                PsiElementFinder.EP.getName(),
-                PsiElementFinder.class
-        );
-        CoreApplicationEnvironment.registerExtensionPoint(
-                project.getExtensionArea(),
-                JvmElementProvider.EP_NAME,
-                JvmElementProvider.class
-        );
-        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), () -> {
-        });
+        initProjectExtensionsAndServices(project);
 
         LanguageLevelProjectExtension.getInstance(project).setLanguageLevel(LanguageLevel.JDK_17);
 
-        psiFileFactory = PsiFileFactory.getInstance(project);
+        psiManager = PsiManager.getInstance(project);
     }
 
     public static void main(String[] args) throws Exception {
         System.setProperty("java.awt.headless", "true");
 
-        var inputPath = Paths.get(args[0]);
-        var output = Paths.get(args[1]);
-        var namesAndDocsPath = Paths.get(args[2]);
+        Path inputPath = null, outputPath = null, namesAndDocsPath = null;
+        boolean enableJavadoc = true;
+        int queueDepth = 50;
 
-        try (var applyParchment = new ApplyParchmentToSourceJar(namesAndDocsPath)) {
-            applyParchment.apply(inputPath, output);
+        for (int i = 0; i < args.length; i++) {
+            var arg = args[i];
+            switch (arg) {
+                case "--in":
+                    if (i + 1 >= args.length) {
+                        System.err.println("Missing argument for --in");
+                        System.exit(1);
+                    }
+                    inputPath = Paths.get(args[++i]);
+                    break;
+                case "--out":
+                    if (i + 1 >= args.length) {
+                        System.err.println("Missing argument for --out");
+                        System.exit(1);
+                    }
+                    outputPath = Paths.get(args[++i]);
+                    break;
+                case "--names":
+                    if (i + 1 >= args.length) {
+                        System.err.println("Missing argument for --names");
+                        System.exit(1);
+                    }
+                    namesAndDocsPath = Paths.get(args[++i]);
+                    break;
+                case "--skip-javadoc":
+                    enableJavadoc = false;
+                    break;
+                case "--queue-depth":
+                    if (i + 1 >= args.length) {
+                        System.err.println("Missing argument for --queue-depth");
+                        System.exit(1);
+                    }
+                    queueDepth = Integer.parseUnsignedInt(args[++i]);
+                    break;
+                case "--help":
+                    printUsage(System.out);
+                    System.exit(0);
+                    break;
+                default:
+                    System.err.println("Unknown argument: " + arg);
+                    printUsage(System.err);
+                    System.exit(1);
+                    break;
+            }
         }
 
+        if (inputPath == null || outputPath == null || namesAndDocsPath == null) {
+            System.err.println("Missing arguments");
+            printUsage(System.err);
+            System.exit(1);
+        }
+
+        try (var applyParchment = new ApplyParchmentToSourceJar(namesAndDocsPath)) {
+            applyParchment.apply(inputPath, outputPath);
+        }
+    }
+
+    private static void printUsage(PrintStream out) {
+        out.println("Arguments:");
+        out.println("  --in <input-file>      Path to input source-jar");
+        out.println("  --out <output-file>    Path where new source-jar will be written");
+        out.println("  --names <names-file>   Path to Parchment ZIP-File or merged TSRG2-Mappings");
+        out.println("  --skip-javadoc         Don't apply Javadocs");
+        out.println("  --queue-depth          How many source files to wait for in parallel. 0 for synchronous processing.");
+        out.println("                         0 for synchronous processing. Default is 50.");
+        out.println("  --help                 Print help");
     }
 
     private void apply(Path inputPath, Path outputPath) throws IOException, InterruptedException {
@@ -175,7 +189,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
                 var entryPath = entry.getName();
                 if (entryPath.endsWith(".java")) {
                     asyncZout.submitAsync(entry, () -> {
-                        return transformSource(entryPath, originalContentBytes);
+                        return transformSource(sourceJarRoot, entryPath, originalContentBytes);
                     });
                 } else {
                     asyncZout.submit(entry, originalContentBytes);
@@ -184,97 +198,41 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         }
     }
 
-    private byte[] transformSource(String path, byte[] originalContentBytes) {
-        String originalContent = new String(originalContentBytes, StandardCharsets.UTF_8);
-        var psiFile = psiFileFactory.createFileFromText(path, JavaLanguage.INSTANCE, originalContent);
+    private byte[] transformSource(VirtualFile contentRoot, String path, byte[] originalContentBytes) {
+        // Instead of parsing the content we actually read from the file, we read the virtual file that is
+        // visible to IntelliJ from adding the source jar. The reasoning is that IntelliJ will cache this internally
+        // and reuse it when cross-referencing type-references. If we parsed from a String instead, it would parse
+        // the same file twice.
+        var sourceFile = contentRoot.findFileByRelativePath(path);
+        if (sourceFile == null) {
+            System.err.println("Can't transform " + path + " since IntelliJ doesn't see it in the source jar.");
+            return originalContentBytes;
+        }
+        var psiFile = psiManager.findFile(sourceFile);
+        if (psiFile == null) {
+            System.err.println("Can't transform " + path + " since IntelliJ can't load it.");
+            return originalContentBytes;
+        }
 
+        // Gather replaced ranges in the source-file with their replacement
         List<Replacement> replacements = new ArrayList<>();
 
-        var v = new PsiRecursiveElementVisitor() {
-            PsiClass currentPsiClass;
-            NamesAndDocsForClass currentClass;
-
-            @Override
-            public void visitElement(@NotNull PsiElement element) {
-                if (element instanceof PsiClass psiClass) {
-                    currentPsiClass = psiClass;
-                    var jvmClassName = ClassUtil.getJVMClassName(psiClass);
-                    if (jvmClassName == null) {
-                        // Anonymous class?
-                        currentClass = null;
-                    } else {
-                        var className = jvmClassName.replace('.', '/');
-                        currentClass = namesAndDocs.getClass(className);
-                    }
-
-                    if (currentClass == null) {
-                        return; // Skip classes without mapping data
-                    }
-
-                    // Add javadoc if available
-                    applyJavadoc(psiClass, currentClass.getJavadoc(), replacements);
-                } else if (element instanceof PsiField psiField) {
-                    // sanity check
-                    if (psiField.getContainingClass() != currentPsiClass) {
-                        return;
-                    }
-
-                    var fieldData = currentClass.getField(psiField.getName());
-                    if (fieldData != null) {
-                        // Add javadoc if available
-                        applyJavadoc(psiField, fieldData.getJavadoc(), replacements);
-                    }
-                } else if (element instanceof PsiMethod method) {
-                    // sanity check
-                    if (method.getContainingClass() != currentPsiClass) {
-                        return;
-                    }
-
-                    var methodSignature = ClassUtil.getAsmMethodSignature(method);
-
-                    var methodData = currentClass.getMethod(method.getName(), methodSignature);
-                    if (methodData != null) {
-                        // Add javadoc if available
-                        applyJavadoc(method, methodData.getJavadoc(), replacements);
-
-                        PsiParameter[] parameters = method.getParameterList().getParameters();
-                        for (int i = 0; i < parameters.length; i++) {
-                            var psiParameter = parameters[i];
-                            // We cannot replace parameters with no name, sadly
-                            if (psiParameter.getNameIdentifier() == null) {
-                                continue;
-                            }
-                            var paramData = methodData.getParameter((byte) i);
-                            if (paramData != null) {
-                                // Find and replace the parameter identifier
-                                replacements.add(Replacement.create(
-                                        psiParameter.getNameIdentifier(), paramData.getName()
-                                ));
-                                // Find usages of the parameter in the method body and replace those as well
-                                PsiTreeUtil.processElements(method.getBody(), (e) -> {
-                                    if (e instanceof PsiReferenceExpression refExpr && refExpr.isReferenceTo(psiParameter)) {
-                                        replacements.add(Replacement.create(
-                                                refExpr.getReferenceNameElement(), paramData.getName()
-                                        ));
-                                    }
-                                    return true;
-                                });
-                            }
-                        }
-                    }
-
-                }
-
-                element.acceptChildren(this);
-            }
-        };
-        v.visitElement(psiFile);
+        var visitor = new GatherReplacementsVisitor(namesAndDocs, enableJavadoc, replacements);
+        visitor.visitElement(psiFile);
 
         // If no replacements were made, just stream the original content into the destination file
         if (replacements.isEmpty()) {
             return originalContentBytes;
         }
 
+        var originalContent = psiFile.getViewProvider().getContents();
+        return applyReplacements(originalContent, replacements).getBytes(StandardCharsets.UTF_8);
+    }
+
+    @NotNull
+    private static String applyReplacements(CharSequence originalContent, List<Replacement> replacements) {
+        // We will assemble the resulting file by iterating all ranges (replaced or not)
+        // For this to work, the replacement ranges need to be in ascending order and non-overlapping
         replacements.sort(Replacement.COMPARATOR);
 
         var writer = new StringBuilder();
@@ -302,59 +260,50 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
             writer.append(replacement.newText());
         }
         writer.append(originalContent, replacements.get(replacements.size() - 1).range().getEndOffset(), originalContent.length());
-        return writer.toString().getBytes(StandardCharsets.UTF_8);
+        return writer.toString();
     }
 
-    private void applyJavadoc(PsiJavaDocumentedElement method, List<String> javadoc, List<Replacement> replacements) {
-        if (!enableJavadoc) {
-            return;
-        }
+    /*
+     * When IntelliJ crashes after an update complaining about an extension point or extension not being available,
+     * check JavaPsiPlugin.xml for the name of that extension point. Then register it as it's defined in the XML
+     * by hand here.
+     *
+     * This method is responsible for anything in the XML that is:
+     * - A projectService
+     * - Extension points marked as area="IDEA_PROJECT"
+     * - Any extensions registered for extension points that are area="IDEA_PROJECT"
+     */
+    private void initProjectExtensionsAndServices(MockProject project) {
+        project.registerService(PsiNameHelper.class, PsiNameHelperImpl.class);
 
-        if (!javadoc.isEmpty()) {
-            var existingDocComment = method.getDocComment();
-            if (existingDocComment != null) {
-                // replace right after
-                var textRange = existingDocComment.getTextRange();
-                replacements.add(
-                        new Replacement(
-                                new TextRange(textRange.getEndOffset(), textRange.getEndOffset()),
-                                "/**\n"
-                                        + javadoc.stream().map(line -> " * " + line + "\n")
-                                        .collect(Collectors.joining())
-                                        + " */\n"
-                        )
-                );
-            } else {
-                // Insert right before the method
-                int startOffset;
-                String indentText;
-                if (method.getPrevSibling() != null && method.getPrevSibling() instanceof PsiWhiteSpace psiWhiteSpace) {
-                    var lastNewline = psiWhiteSpace.getText().lastIndexOf('\n');
-                    var wsRange = psiWhiteSpace.getTextRange();
-                    // No newline, just take the entire whitespace as indent, and insert before
-                    if (lastNewline == -1) {
-                        indentText = " ".repeat(psiWhiteSpace.getTextLength());
-                        startOffset = wsRange.getEndOffset();
-                    } else {
-                        // Otherwise we inherit the whitespace as our own indent
-                        indentText = " ".repeat(psiWhiteSpace.getTextLength() - lastNewline - 1);
-                        startOffset = wsRange.getEndOffset();
-                    }
-                } else {
-                    indentText = "";
-                    startOffset = method.getTextRange().getStartOffset();
-                }
-                replacements.add(
-                        new Replacement(
-                                new TextRange(startOffset, startOffset),
-                                "/**\n"
-                                        + javadoc.stream().map(line -> indentText + " * " + line + "\n")
-                                        .collect(Collectors.joining())
-                                        + indentText + " */\n" + indentText
-                        )
-                );
-            }
-        }
+        var projectExtensions = project.getExtensionArea();
+        CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, PsiTreeChangePreprocessor.EP.getName(), PsiTreeChangePreprocessor.class);
+        CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, PsiElementFinder.EP.getName(), PsiElementFinder.class);
+        CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, JvmElementProvider.EP_NAME, JvmElementProvider.class);
+        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), NOOP_DISPOSABLE);
+    }
+
+    /*
+     * When IntelliJ crashes after an update complaining about an extension point or extension not being available,
+     * check JavaPsiPlugin.xml for the name of that extension point. Then register it as it's defined in the XML
+     * by hand here.
+     *
+     * This method is responsible for anything in the XML that is:
+     * - An applicationService
+     * - Extension points not marked as area="IDEA_PROJECT"
+     * - Any extensions registered for extension points that are not marked area="IDEA_PROJECT"
+     */
+    private static void initAppExtensionsAndServices(JavaCoreApplicationEnvironment appEnv) {
+        // When any service or extension point is missing, check JavaPsiPlugin.xml in classpath and grab the definition
+        appEnv.registerApplicationService(JavaClassSupers.class, new com.intellij.psi.impl.JavaClassSupersImpl());
+        appEnv.registerApplicationService(InternalPersistentJavaLanguageLevelReaderService.class, new InternalPersistentJavaLanguageLevelReaderService.DefaultImpl());
+        appEnv.registerApplicationService(TransactionGuard.class, new TransactionGuardImpl());
+
+        var appExtensions = appEnv.getApplication().getExtensionArea();
+        CoreApplicationEnvironment.registerExtensionPoint(appExtensions, PsiAugmentProvider.EP_NAME, PsiAugmentProvider.class);
+        CoreApplicationEnvironment.registerExtensionPoint(appExtensions, JavaModuleSystem.EP_NAME, JavaModuleSystem.class);
+        CoreApplicationEnvironment.registerExtensionPoint(appExtensions, TreeGenerator.EP_NAME, TreeGenerator.class);
+        appExtensions.getExtensionPoint(TreeGenerator.EP_NAME).registerExtension(new JavaTreeGenerator(), NOOP_DISPOSABLE);
     }
 
     @Override
