@@ -8,10 +8,6 @@ plugins {
 group = 'net.neoforged'
 project.version = gradleutils.version
 
-repositories {
-    mavenCentral()
-}
-
 jar {
     manifest {
         attributes 'Main-Class': 'ApplyParchmentToSourceJar'
@@ -19,6 +15,7 @@ jar {
 }
 
 repositories {
+    mavenCentral()
     maven {
         url "https://www.jetbrains.com/intellij-repository/releases/"
     }
