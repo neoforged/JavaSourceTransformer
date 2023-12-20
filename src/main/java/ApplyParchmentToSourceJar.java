@@ -31,11 +31,9 @@ import namesanddocs.NameAndDocSourceLoader;
 import namesanddocs.NamesAndDocsDatabase;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -212,6 +210,10 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
                 }
             }
         }
+    }
+
+    void addJarToClassPath(Path jarFile) {
+        javaEnv.addJarToClassPath(jarFile.toFile());
     }
 
     byte[] transformSource(VirtualFile contentRoot, String path, byte[] originalContentBytes) {

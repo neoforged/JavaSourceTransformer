@@ -12,14 +12,25 @@ import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class Tests {
+/**
+ * Test that references to external classes in method signatures are correctly resolved.
+ */
+public class ApplyParchmentToSourceJarTest {
     @TempDir
     private Path tempDir;
 
     @Test
-    void testNesting() throws Exception {
+    void testInnerAndLocalClasses() throws Exception {
+        runTest("/nested");
+    }
 
-        var parchmentFile = Paths.get(getClass().getResource("/test1/parchment.json").toURI());
+    @Test
+    void testExternalReferences() throws Exception {
+        runTest("/external_refs");
+    }
+
+    protected final void runTest(String testDir) throws Exception {
+        var parchmentFile = Paths.get(getClass().getResource(testDir + "/parchment.json").toURI());
         var sourceDir = parchmentFile.resolveSibling("source");
         var expectedDir = parchmentFile.resolveSibling("expected");
 
@@ -35,7 +46,13 @@ public class Tests {
 
         var ouptutFile = tempDir.resolve("output.jar");
         try (var remapper = new ApplyParchmentToSourceJar(javaHome, NameAndDocSourceLoader.load(parchmentFile))) {
-            remapper.setMaxQueueDepth(0); // Easier to debug...
+            // For testing external references, add JUnit-API so it can be referenced
+            var junitJarPath = Paths.get(Test.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            remapper.addJarToClassPath(junitJarPath);
+
+            // Easier to debug without concurrency
+            remapper.setMaxQueueDepth(0);
+
             remapper.apply(inputFile, ouptutFile);
         }
 
