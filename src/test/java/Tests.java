@@ -30,8 +30,11 @@ public class Tests {
             }, null);
         }
 
+        // Add the Java Runtime we are currently running in
+        var javaHome = Paths.get(System.getProperty("java.home"));
+
         var ouptutFile = tempDir.resolve("output.jar");
-        try (var remapper = new ApplyParchmentToSourceJar(NameAndDocSourceLoader.load(parchmentFile))) {
+        try (var remapper = new ApplyParchmentToSourceJar(javaHome, NameAndDocSourceLoader.load(parchmentFile))) {
             remapper.setMaxQueueDepth(0); // Easier to debug...
             remapper.apply(inputFile, ouptutFile);
         }

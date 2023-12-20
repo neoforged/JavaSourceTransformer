@@ -5,10 +5,14 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiJavaDocumentedElement;
+import com.intellij.psi.PsiLambdaExpression;
 import com.intellij.psi.PsiMethod;
+import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
+import com.intellij.psi.PsiType;
+import com.intellij.psi.PsiTypes;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.SyntaxTraverser;
 import com.intellij.psi.search.GlobalSearchScope;
@@ -97,8 +101,13 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     if (psiParameter.getNameIdentifier() == null) {
                         continue;
                     }
-                    var paramData = methodData.getParameter(i);
-                    if (paramData != null) {
+
+                    // Parchment stores parameter indices based on the index of the parameter in the actual compiled method
+                    // to account for synthetic parameter not found in the source-code, we must adjust the index accordingly.
+                    var jvmIndex = getJvmIndex(psiParameter, i);
+
+                    var paramData = methodData.getParameter(jvmIndex);
+                    if (paramData != null && paramData.getName() != null) {
                         // Replace parameters within the method body
                         activeParameters.put(psiParameter, paramData);
 
@@ -134,6 +143,28 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         }
 
         element.acceptChildren(this);
+    }
+
+    private int getJvmIndex(PsiParameter psiParameter, int index) {
+        var declarationScope = psiParameter.getDeclarationScope();
+        if (declarationScope instanceof PsiMethod psiMethod) {
+
+            // Try to account for hidden parameters only present in bytecode since the
+            // mapping data refers to parameters using those indices
+            if (psiMethod.isConstructor() && psiMethod.getContainingClass() != null && psiMethod.getContainingClass().isEnum()) {
+                index += 2;
+            } else if (psiMethod.getContainingClass() != null && psiMethod.getContainingClass() != null
+                    && !psiMethod.getContainingClass().hasModifierProperty(PsiModifier.STATIC)) {
+                index += 1;
+            }
+
+            return index;
+        } else if (declarationScope instanceof PsiLambdaExpression psiLambda) {
+            // Naming lambdas doesn't really work
+            return index;
+        } else {
+            return -1;
+        }
     }
 
     private void applyJavadoc(PsiJavaDocumentedElement method, List<String> javadoc, List<Replacement> replacements) {
@@ -224,7 +255,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
             var classData = getClassData(psiMethod.getContainingClass());
             if (classData != null) {
                 var methodName = psiMethod.getName();
-                var methodSignature = ClassUtil.getAsmMethodSignature(psiMethod);
+                var methodSignature = getBinaryMethodSignature(psiMethod);
                 methodData = Optional.ofNullable(classData.getMethod(methodName, methodSignature));
             }
 
@@ -232,6 +263,29 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
             return methodData.orElse(null);
         }
     }
+
+    public static String getBinaryMethodSignature(PsiMethod method) {
+        StringBuilder signature = new StringBuilder();
+        signature.append("(");
+        for (PsiParameter param : method.getParameterList().getParameters()) {
+            var binaryPresentation = ClassUtil.getBinaryPresentation(param.getType());
+            if (binaryPresentation.isEmpty()) {
+                System.err.println("Failed to create binary representation for type " + param.getType().getCanonicalText());
+                binaryPresentation = "ERROR";
+            }
+            signature.append(binaryPresentation);
+        }
+        signature.append(")");
+        var returnType = Optional.ofNullable(method.getReturnType()).orElse(PsiTypes.voidType());
+        var returnTypeRepresentation = ClassUtil.getBinaryPresentation(returnType);
+        if (returnTypeRepresentation.isEmpty()) {
+            System.err.println("Failed to create binary representation for type " + returnType.getCanonicalText());
+            returnTypeRepresentation = "ERROR";
+        }
+        signature.append(returnTypeRepresentation);
+        return signature.toString();
+    }
+
 
     /**
      * An adapted version of {@link ClassUtil#formatClassName(PsiClass, StringBuilder)} where Inner-Classes

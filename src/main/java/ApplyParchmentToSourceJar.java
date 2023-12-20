@@ -1,5 +1,4 @@
 import com.intellij.core.CoreApplicationEnvironment;
-import com.intellij.core.CoreJavaFileManager;
 import com.intellij.core.JavaCoreApplicationEnvironment;
 import com.intellij.core.JavaCoreProjectEnvironment;
 import com.intellij.lang.jvm.facade.JvmElementProvider;
@@ -12,6 +11,7 @@ import com.intellij.openapi.roots.LanguageLevelProjectExtension;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileSystem;
 import com.intellij.openapi.vfs.impl.ZipHandler;
 import com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService;
 import com.intellij.pom.java.LanguageLevel;
@@ -23,17 +23,19 @@ import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.impl.PsiElementFinderImpl;
 import com.intellij.psi.impl.PsiNameHelperImpl;
 import com.intellij.psi.impl.PsiTreeChangePreprocessor;
-import com.intellij.psi.impl.file.impl.JavaFileManager;
 import com.intellij.psi.impl.source.tree.JavaTreeGenerator;
 import com.intellij.psi.impl.source.tree.TreeGenerator;
 import com.intellij.psi.util.JavaClassSupers;
+import modules.CoreJrtFileSystem;
 import namesanddocs.NameAndDocSourceLoader;
 import namesanddocs.NamesAndDocsDatabase;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,19 +60,27 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
     private boolean enableJavadoc = true;
     private final Disposable rootDisposable;
 
-    public ApplyParchmentToSourceJar(NamesAndDocsDatabase namesAndDocs) throws IOException {
+    public ApplyParchmentToSourceJar(Path javaHome, NamesAndDocsDatabase namesAndDocs) throws IOException {
         this.namesAndDocs = namesAndDocs;
         tempDir = Files.createTempDirectory("applyparchment");
         this.rootDisposable = Disposer.newDisposable();
+        System.setProperty("idea.home.path", tempDir.toAbsolutePath().toString());
 
         // IDEA requires a config directory, even if it's empty
         PathManager.setExplicitConfigPath(tempDir.toAbsolutePath().toString());
         Registry.markAsLoaded(); // Avoids warnings about config not being loaded
 
-        var appEnv = new JavaCoreApplicationEnvironment(rootDisposable);
+        var appEnv = new JavaCoreApplicationEnvironment(rootDisposable) {
+            @Override
+            protected VirtualFileSystem createJrtFileSystem() {
+                return new CoreJrtFileSystem();
+            }
+        };
         initAppExtensionsAndServices(appEnv);
 
         javaEnv = new JavaCoreProjectEnvironment(rootDisposable, appEnv);
+
+        ClasspathSetup.addJdkModules(javaHome, javaEnv);
 
         project = javaEnv.getProject();
 
@@ -81,10 +91,11 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         psiManager = PsiManager.getInstance(project);
     }
 
+
     public static void main(String[] args) throws Exception {
         System.setProperty("java.awt.headless", "true");
 
-        Path inputPath = null, outputPath = null, namesAndDocsPath = null;
+        Path inputPath = null, outputPath = null, namesAndDocsPath = null, librariesPath = null;
         boolean enableJavadoc = true;
         int queueDepth = 50;
 
@@ -104,6 +115,13 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
                         System.exit(1);
                     }
                     outputPath = Paths.get(args[++i]);
+                    break;
+                case "--libraries":
+                    if (i + 1 >= args.length) {
+                        System.err.println("Missing argument for --libraries");
+                        System.exit(1);
+                    }
+                    librariesPath = Paths.get(args[++i]);
                     break;
                 case "--names":
                     if (i + 1 >= args.length) {
@@ -142,7 +160,15 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
 
         var namesAndDocs = NameAndDocSourceLoader.load(namesAndDocsPath);
 
-        try (var applyParchment = new ApplyParchmentToSourceJar(namesAndDocs)) {
+        // Add the Java Runtime we are currently running in
+        var javaHome = Paths.get(System.getProperty("java.home"));
+
+        try (var applyParchment = new ApplyParchmentToSourceJar(javaHome, namesAndDocs)) {
+            // Add external libraries to classpath
+            if (librariesPath != null) {
+                ClasspathSetup.addLibraries(librariesPath, applyParchment.javaEnv);
+            }
+
             applyParchment.setMaxQueueDepth(queueDepth);
             applyParchment.setEnableJavadoc(enableJavadoc);
             applyParchment.apply(inputPath, outputPath);
@@ -168,21 +194,6 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         }
 
         javaEnv.addSourcesToClasspath(sourceJarRoot);
-
-        var javaFileManager = (CoreJavaFileManager) JavaFileManager.getInstance(project);
-        javaFileManager.addToClasspath(sourceJarRoot);
-
-//        Files.readAllLines(Paths.get(librariesPath))
-//                .stream()
-//                .filter(l -> l.startsWith("-e="))
-//                .map(l -> l.substring(3))
-//                .map(File::new)
-//                .forEach(file -> {
-//                    if (!file.exists()) {
-//                        throw new UncheckedIOException(new FileNotFoundException(file.getAbsolutePath()));
-//                    }
-//                    javaEnv.addJarToClassPath(file);
-//                });
 
         try (var zin = new ZipInputStream(Files.newInputStream(inputPath));
              var fout = Files.newOutputStream(outputPath);
