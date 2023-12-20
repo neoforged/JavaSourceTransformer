@@ -9,7 +9,7 @@
           "descriptor": "(Lpkg/Outer$InnerClass;)V",
           "parameters": [
             {
-              "index": 0,
+              "index": 1,
               "name": "innerClass"
             }
           ]
@@ -24,7 +24,7 @@
           "descriptor": "(Lpkg/SamePkgClass;)V",
           "parameters": [
             {
-              "index": 0,
+              "index": 1,
               "name": "samePkgClass"
             }
           ]
@@ -39,7 +39,7 @@
           "descriptor": "(LDefaultPkgClass;)V",
           "parameters": [
             {
-              "index": 0,
+              "index": 1,
               "name": "defaultPkgClass"
             }
           ]
