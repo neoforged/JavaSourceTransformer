@@ -17,6 +17,21 @@
       ]
     },
     {
+      "name": "pkg/Outer$1",
+      "methods": [
+        {
+          "name": "m",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "pkg/Outer$InnerClass",
       "methods": [
         {

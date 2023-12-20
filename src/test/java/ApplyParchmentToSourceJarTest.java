@@ -29,6 +29,11 @@ public class ApplyParchmentToSourceJarTest {
         runTest("/external_refs");
     }
 
+    @Test
+    void testParamIndices() throws Exception {
+        runTest("/param_indices");
+    }
+
     protected final void runTest(String testDir) throws Exception {
         var parchmentFile = Paths.get(getClass().getResource(testDir + "/parchment.json").toURI());
         var sourceDir = parchmentFile.resolveSibling("source");
@@ -41,11 +46,8 @@ public class ApplyParchmentToSourceJarTest {
             }, null);
         }
 
-        // Add the Java Runtime we are currently running in
-        var javaHome = Paths.get(System.getProperty("java.home"));
-
         var ouptutFile = tempDir.resolve("output.jar");
-        try (var remapper = new ApplyParchmentToSourceJar(javaHome, NameAndDocSourceLoader.load(parchmentFile))) {
+        try (var remapper = new ApplyParchmentToSourceJar(NameAndDocSourceLoader.load(parchmentFile))) {
             // For testing external references, add JUnit-API so it can be referenced
             var junitJarPath = Paths.get(Test.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             remapper.addJarToClassPath(junitJarPath);

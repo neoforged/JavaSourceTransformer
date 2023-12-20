@@ -1,32 +1,4 @@
-import com.intellij.core.CoreApplicationEnvironment;
-import com.intellij.core.JavaCoreApplicationEnvironment;
-import com.intellij.core.JavaCoreProjectEnvironment;
-import com.intellij.lang.jvm.facade.JvmElementProvider;
-import com.intellij.mock.MockProject;
-import com.intellij.openapi.Disposable;
-import com.intellij.openapi.application.PathManager;
-import com.intellij.openapi.application.TransactionGuard;
-import com.intellij.openapi.application.TransactionGuardImpl;
-import com.intellij.openapi.roots.LanguageLevelProjectExtension;
-import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileSystem;
-import com.intellij.openapi.vfs.impl.ZipHandler;
-import com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService;
-import com.intellij.pom.java.LanguageLevel;
-import com.intellij.psi.JavaModuleSystem;
-import com.intellij.psi.PsiElementFinder;
-import com.intellij.psi.PsiManager;
-import com.intellij.psi.PsiNameHelper;
-import com.intellij.psi.augment.PsiAugmentProvider;
-import com.intellij.psi.impl.PsiElementFinderImpl;
-import com.intellij.psi.impl.PsiNameHelperImpl;
-import com.intellij.psi.impl.PsiTreeChangePreprocessor;
-import com.intellij.psi.impl.source.tree.JavaTreeGenerator;
-import com.intellij.psi.impl.source.tree.TreeGenerator;
-import com.intellij.psi.util.JavaClassSupers;
-import modules.CoreJrtFileSystem;
 import namesanddocs.NameAndDocSourceLoader;
 import namesanddocs.NamesAndDocsDatabase;
 import org.jetbrains.annotations.NotNull;
@@ -49,50 +21,16 @@ import java.util.zip.ZipOutputStream;
  */
 public class ApplyParchmentToSourceJar implements AutoCloseable {
     private final NamesAndDocsDatabase namesAndDocs;
-
-    private final Path tempDir;
-    private final MockProject project;
-    private final JavaCoreProjectEnvironment javaEnv;
-    private final PsiManager psiManager;
+    private final IntelliJEnvironment ijEnv = new IntelliJEnvironment();
     private int maxQueueDepth = 50;
     private boolean enableJavadoc = true;
-    private final Disposable rootDisposable;
 
-    public ApplyParchmentToSourceJar(Path javaHome, NamesAndDocsDatabase namesAndDocs) throws IOException {
+    public ApplyParchmentToSourceJar(NamesAndDocsDatabase namesAndDocs) throws IOException {
         this.namesAndDocs = namesAndDocs;
-        tempDir = Files.createTempDirectory("applyparchment");
-        this.rootDisposable = Disposer.newDisposable();
-        System.setProperty("idea.home.path", tempDir.toAbsolutePath().toString());
-
-        // IDEA requires a config directory, even if it's empty
-        PathManager.setExplicitConfigPath(tempDir.toAbsolutePath().toString());
-        Registry.markAsLoaded(); // Avoids warnings about config not being loaded
-
-        var appEnv = new JavaCoreApplicationEnvironment(rootDisposable) {
-            @Override
-            protected VirtualFileSystem createJrtFileSystem() {
-                return new CoreJrtFileSystem();
-            }
-        };
-        initAppExtensionsAndServices(appEnv);
-
-        javaEnv = new JavaCoreProjectEnvironment(rootDisposable, appEnv);
-
-        ClasspathSetup.addJdkModules(javaHome, javaEnv);
-
-        project = javaEnv.getProject();
-
-        initProjectExtensionsAndServices(project);
-
-        LanguageLevelProjectExtension.getInstance(project).setLanguageLevel(LanguageLevel.JDK_17);
-
-        psiManager = PsiManager.getInstance(project);
+        ijEnv.addCurrentJdkToClassPath();
     }
 
-
     public static void main(String[] args) throws Exception {
-        System.setProperty("java.awt.headless", "true");
-
         Path inputPath = null, outputPath = null, namesAndDocsPath = null, librariesPath = null;
         boolean enableJavadoc = true;
         int queueDepth = 50;
@@ -158,13 +96,10 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
 
         var namesAndDocs = NameAndDocSourceLoader.load(namesAndDocsPath);
 
-        // Add the Java Runtime we are currently running in
-        var javaHome = Paths.get(System.getProperty("java.home"));
-
-        try (var applyParchment = new ApplyParchmentToSourceJar(javaHome, namesAndDocs)) {
+        try (var applyParchment = new ApplyParchmentToSourceJar(namesAndDocs)) {
             // Add external libraries to classpath
             if (librariesPath != null) {
-                ClasspathSetup.addLibraries(librariesPath, applyParchment.javaEnv);
+                ClasspathSetup.addLibraries(librariesPath, applyParchment.ijEnv);
             }
 
             applyParchment.setMaxQueueDepth(queueDepth);
@@ -185,6 +120,8 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
     }
 
     public void apply(Path inputPath, Path outputPath) throws IOException, InterruptedException {
+
+        var javaEnv = ijEnv.getProjectEnv();
 
         var sourceJarRoot = javaEnv.getEnvironment().getJarFileSystem().findFileByPath(inputPath + "!/");
         if (sourceJarRoot == null) {
@@ -213,7 +150,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
     }
 
     void addJarToClassPath(Path jarFile) {
-        javaEnv.addJarToClassPath(jarFile.toFile());
+        ijEnv.addJarToClassPath(jarFile);
     }
 
     byte[] transformSource(VirtualFile contentRoot, String path, byte[] originalContentBytes) {
@@ -226,7 +163,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
             System.err.println("Can't transform " + path + " since IntelliJ doesn't see it in the source jar.");
             return originalContentBytes;
         }
-        var psiFile = psiManager.findFile(sourceFile);
+        var psiFile = ijEnv.getPsiManager().findFile(sourceFile);
         if (psiFile == null) {
             System.err.println("Can't transform " + path + " since IntelliJ can't load it.");
             return originalContentBytes;
@@ -281,48 +218,6 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
         return writer.toString();
     }
 
-    /*
-     * When IntelliJ crashes after an update complaining about an extension point or extension not being available,
-     * check JavaPsiPlugin.xml for the name of that extension point. Then register it as it's defined in the XML
-     * by hand here.
-     *
-     * This method is responsible for anything in the XML that is:
-     * - A projectService
-     * - Extension points marked as area="IDEA_PROJECT"
-     * - Any extensions registered for extension points that are area="IDEA_PROJECT"
-     */
-    private void initProjectExtensionsAndServices(MockProject project) {
-        project.registerService(PsiNameHelper.class, PsiNameHelperImpl.class);
-
-        var projectExtensions = project.getExtensionArea();
-        CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, PsiTreeChangePreprocessor.EP.getName(), PsiTreeChangePreprocessor.class);
-        CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, PsiElementFinder.EP.getName(), PsiElementFinder.class);
-        CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, JvmElementProvider.EP_NAME, JvmElementProvider.class);
-        PsiElementFinder.EP.getPoint(project).registerExtension(new PsiElementFinderImpl(project), rootDisposable);
-    }
-
-    /*
-     * When IntelliJ crashes after an update complaining about an extension point or extension not being available,
-     * check JavaPsiPlugin.xml for the name of that extension point. Then register it as it's defined in the XML
-     * by hand here.
-     *
-     * This method is responsible for anything in the XML that is:
-     * - An applicationService
-     * - Extension points not marked as area="IDEA_PROJECT"
-     * - Any extensions registered for extension points that are not marked area="IDEA_PROJECT"
-     */
-    private void initAppExtensionsAndServices(JavaCoreApplicationEnvironment appEnv) {
-        // When any service or extension point is missing, check JavaPsiPlugin.xml in classpath and grab the definition
-        appEnv.registerApplicationService(JavaClassSupers.class, new com.intellij.psi.impl.JavaClassSupersImpl());
-        appEnv.registerApplicationService(InternalPersistentJavaLanguageLevelReaderService.class, new InternalPersistentJavaLanguageLevelReaderService.DefaultImpl());
-        appEnv.registerApplicationService(TransactionGuard.class, new TransactionGuardImpl());
-
-        var appExtensions = appEnv.getApplication().getExtensionArea();
-        CoreApplicationEnvironment.registerExtensionPoint(appExtensions, PsiAugmentProvider.EP_NAME, PsiAugmentProvider.class);
-        CoreApplicationEnvironment.registerExtensionPoint(appExtensions, JavaModuleSystem.EP_NAME, JavaModuleSystem.class);
-        CoreApplicationEnvironment.registerExtensionPoint(appExtensions, TreeGenerator.EP_NAME, TreeGenerator.class);
-        appExtensions.getExtensionPoint(TreeGenerator.EP_NAME).registerExtension(new JavaTreeGenerator(), rootDisposable);
-    }
 
     public void setMaxQueueDepth(int maxQueueDepth) {
         this.maxQueueDepth = maxQueueDepth;
@@ -334,10 +229,7 @@ public class ApplyParchmentToSourceJar implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        // Releases cached ZipFiles within IntelliJ, allowing the tempdir to be deleted
-        ZipHandler.clearFileAccessorCache();
-        Disposer.dispose(rootDisposable);
-        Files.deleteIfExists(tempDir);
+        ijEnv.close();
     }
 
 }

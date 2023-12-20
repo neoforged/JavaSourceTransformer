@@ -1,0 +1,160 @@
+{
+  "version": "1.1.0",
+  "classes": [
+    {
+      "name": "TestEnum",
+      "methods": [
+        {
+          "name": "<init>",
+          "descriptor": "(Ljava/lang/String;II)V",
+          "parameters": [
+            {
+              "index": 3,
+              "name": "mapped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TestClass",
+      "methods": [
+        {
+          "name": "<init>",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "instanceMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "staticMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "mapped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TestClass$InnerClass",
+      "methods": [
+        {
+          "name": "<init>",
+          "descriptor": "(LTestClass;I)V",
+          "parameters": [
+            {
+              "index": 2,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "instanceMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "staticMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "mapped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TestClass$InnerClass$InnerStaticInnerClass",
+      "methods": [
+        {
+          "name": "<init>",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "instanceMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "staticMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "mapped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TestClass$StaticInnerClass",
+      "methods": [
+        {
+          "name": "<init>",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "instanceMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "mapped"
+            }
+          ]
+        },
+        {
+          "name": "staticMethod",
+          "descriptor": "(I)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "mapped"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

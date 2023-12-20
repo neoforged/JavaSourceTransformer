@@ -5,13 +5,13 @@ import com.intellij.util.io.URLUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 
@@ -59,19 +59,19 @@ public final class ClasspathSetup {
         System.out.println("Added " + moduleCount + " modules from " + jdkHome);
     }
 
-    public static void addLibraries(Path librariesPath, JavaCoreProjectEnvironment javaEnv) throws IOException {
+    public static void addLibraries(Path librariesPath, IntelliJEnvironment ijEnv) throws IOException {
         var libraryFiles = Files.readAllLines(librariesPath)
                 .stream()
                 .filter(l -> l.startsWith("-e="))
                 .map(l -> l.substring(3))
-                .map(File::new)
+                .map(Paths::get)
                 .toList();
 
         for (var libraryFile : libraryFiles) {
-            if (!libraryFile.exists()) {
-                throw new UncheckedIOException(new FileNotFoundException(libraryFile.getAbsolutePath()));
+            if (!Files.exists(libraryFile)) {
+                throw new UncheckedIOException(new FileNotFoundException(libraryFile.toString()));
             }
-            javaEnv.addJarToClassPath(libraryFile);
+            ijEnv.addJarToClassPath(libraryFile);
             System.out.println("Added " + libraryFile);
         }
     }

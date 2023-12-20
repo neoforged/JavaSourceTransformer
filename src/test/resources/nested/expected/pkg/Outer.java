@@ -2,6 +2,9 @@ package pkg;
 class Outer {
     void m(InnerClass innerClass) {
         System.out.println(innerClass);
+        new Object() {
+            void m(int mapped) {}
+        }
     }
     class InnerClass {
         void m(SamePkgClass samePkgClass) {
