@@ -1,15 +1,23 @@
-# Apply Parchment to Source Jar
+# Java Source Transformer
 
-This tool is intended to apply [Parchment Mappings](https://parchmentmc.org/) to a Source-Jar containing
-Minecraft source code right before it is recompiled for use in a dev environment.
+This project intends to be a command-line tool to apply configurable transformations to Java source-code without
+user-interaction. It is intended to be integrated into the [NeoGradle](https://github.com/neoforged/NeoGradle) 
+pipeline for producing a Minecraft Jar-File for use in modding projects.
 
-It applies method parameter names as well as Javadoc definitions using libraries
-from [IntelliJ Community Edition](https://github.com/JetBrains/intellij-community).
+The source code is parsed using [IntelliJ Community Edition](https://github.com/JetBrains/intellij-community) libraries.
 
-To aid development of [NeoForge](https://github.com/neoforged/NeoForge) itself, it also supports replacing parameter
-names with
-SRG parameters using the merged mapping file produced during
-the [NeoForm](https://github.com/neoforged/NeoForm)/[NeoGradle](https://github.com/neoforged/NeoGradle) build.
+## Transformations
+
+### JavaDoc Injection (JavaDoctor)
+
+Inserts additional class, method, and field Javadoc elements. The majority of these are sourced
+from [Parchment](https://parchmentmc.org/).
+
+### Method Parameter Names
+
+During deobfuscation, the method parameter names are set to stable but automatically generated names.
+To aid developers in understanding the decompiled code, and for better code generation when overriding decompiled
+methods in mods, method parameter names are replaced with crowdsourced information from [Parchment](https://parchmentmc.org/).
 
 ## Usage
 

@@ -7,4 +7,4 @@ pluginManagement {
         id 'net.neoforged.gradleutils' version '3.0.0-alpha.8'
     }
 }
-rootProject.name = 'ApplyParchmentToSourceJar'
+rootProject.name = 'JavaSourceTransformer'
