@@ -314,35 +314,4 @@ public final class JavadocHelper {
     private record JavadocTag(String tagName, @Nullable String refersTo, String text) {
     }
 
-    public static void splitIntoMultipleLines(int maxLength, String str, BiConsumer<String, Integer> consumer) {
-        if (str == null) return;
-
-        final BreakIterator boundary = BreakIterator.getWordInstance(Locale.ENGLISH);
-        StringBuilder currentLine = null;
-        int amount = 0;
-
-        boundary.setText(str);
-        int start = boundary.first();
-
-        for (int end = boundary.next();
-             end != BreakIterator.DONE;
-             start = end, end = boundary.next()) {
-            final String word = str.substring(start, end);
-            if (currentLine == null) {
-                currentLine = new StringBuilder().append(word);
-            } else {
-                if (currentLine.length() + word.length() > maxLength) {
-                    consumer.accept(currentLine.toString().trim(), amount++);
-                    currentLine = new StringBuilder().append(word);
-                } else {
-                    currentLine.append(word);
-                }
-            }
-        }
-
-        if (currentLine != null) {
-            consumer.accept(currentLine.toString(), amount);
-        }
-    }
-
 }
