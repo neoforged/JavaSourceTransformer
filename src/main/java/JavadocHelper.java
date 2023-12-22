@@ -54,8 +54,14 @@ public final class JavadocHelper {
                                      Map<String, String> renamedParameters,
                                      List<String> parameterOrder,
                                      List<Replacement> replacements) {
+
         var existingDocComment = psiElement.getDocComment();
         if (existingDocComment != null) {
+
+            // If no parameter documentation or javadoc is given, and no parameters were renamed, don't bother
+            if (javadoc.isEmpty() && parameters.isEmpty() && renamedParameters.isEmpty()) {
+                return;
+            }
 
             // Merge the existing body + new lines
             var bodyLines = getMergedJavadocBody(existingDocComment, javadoc);
@@ -89,6 +95,12 @@ public final class JavadocHelper {
                     JavadocHelper.formatJavadoc(indent, bodyLines, tags, parameterDocs, parameterOrder)
             ));
         } else {
+
+            // If no parameter documentation or javadoc is given
+            if (javadoc.isEmpty() && parameters.isEmpty()) {
+                return;
+            }
+
             int indent = 0;
             // If the element is preceded by whitespace, use the last line of that whitespace as the indent
             if (psiElement.getPrevSibling() instanceof PsiWhiteSpace psiWhiteSpace) {
