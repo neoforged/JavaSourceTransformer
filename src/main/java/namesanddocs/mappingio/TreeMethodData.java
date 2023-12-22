@@ -3,6 +3,7 @@ package namesanddocs.mappingio;
 import namesanddocs.NamesAndDocsForMethod;
 import namesanddocs.NamesAndDocsForParameter;
 import net.fabricmc.mappingio.tree.MappingTree;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -24,6 +25,16 @@ public class TreeMethodData implements NamesAndDocsForMethod {
         if (paramData == null || paramData.getName(0) == null) {
             return null;
         }
-        return () -> paramData.getName(0);
+        return new NamesAndDocsForParameter() {
+            @Override
+            public @Nullable String getName() {
+                return paramData.getName(0);
+            }
+
+            @Override
+            public @Nullable String getJavadoc() {
+                return null;
+            }
+        };
     }
 }

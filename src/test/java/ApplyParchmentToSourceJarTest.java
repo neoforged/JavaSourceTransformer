@@ -34,6 +34,11 @@ public class ApplyParchmentToSourceJarTest {
         runTest("/param_indices");
     }
 
+    @Test
+    void testJavadoc() throws Exception {
+        runTest("/javadoc");
+    }
+
     protected final void runTest(String testDir) throws Exception {
         var parchmentFile = Paths.get(getClass().getResource(testDir + "/parchment.json").toURI());
         var sourceDir = parchmentFile.resolveSibling("source");

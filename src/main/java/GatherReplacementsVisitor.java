@@ -1,4 +1,3 @@
-import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
@@ -8,16 +7,17 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
-import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.search.GlobalSearchScope;
 import namesanddocs.NamesAndDocsDatabase;
 import namesanddocs.NamesAndDocsForParameter;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
@@ -50,7 +50,8 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 if (foundClass == null) {
                     throw new IllegalStateException("Failed to find how class " + psiClass.getQualifiedName() + " was loaded while processing it");
                 } else if (foundClass != psiClass) {
-                    throw new IllegalStateException("Class " + psiClass + " was loaded from two different sources");
+                    throw new IllegalStateException("Class " + psiClass + " was loaded from two different sources: " +
+                            psiClass.getContainingFile() + " and " + foundClass.getContainingFile());
                 }
             }
 
@@ -69,8 +70,10 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         } else if (element instanceof PsiMethod psiMethod) {
             var methodData = PsiHelper.getMethodData(namesAndDocs, psiMethod);
             if (methodData != null) {
-                // Add javadoc if available
-                applyJavadoc(psiMethod, methodData.getJavadoc(), replacements);
+
+                Map<String, String> parameterJavadoc = new HashMap<>();
+                Map<String, String> renamedParameters = new HashMap<>();
+                List<String> parameterOrder = new ArrayList<>();
 
                 PsiParameter[] parameters = psiMethod.getParameterList().getParameters();
                 boolean hadReplacements = false;
@@ -86,18 +89,42 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     var jvmIndex = PsiHelper.getBinaryIndex(psiParameter, i);
 
                     var paramData = methodData.getParameter(jvmIndex);
+                    // Optionally replace the parameter name
                     if (paramData != null && paramData.getName() != null) {
                         // Replace parameters within the method body
                         activeParameters.put(psiParameter, paramData);
 
                         // Find and replace the parameter identifier
-                        replacements.add(Replacement.create(
-                                psiParameter.getNameIdentifier(), paramData.getName()
-                        ));
+                        replacements.add(Replacement.replace(psiParameter.getNameIdentifier(), paramData.getName()));
+
+                        // Record the replacement for remapping existing Javadoc @param tags
+                        renamedParameters.put(psiParameter.getName(), paramData.getName());
 
                         hadReplacements = true;
+
+                        parameterOrder.add(paramData.getName());
+                    } else {
+                        parameterOrder.add(psiParameter.getName());
+                    }
+
+                    // Optionally provide parameter javadocs
+                    if (paramData != null && paramData.getJavadoc() != null) {
+                        parameterJavadoc.put(
+                                Objects.requireNonNullElse(paramData.getName(), psiParameter.getName()),
+                                paramData.getJavadoc()
+                        );
                     }
                 }
+
+                // Add javadoc if available
+                JavadocHelper.enrichJavadoc(
+                        psiMethod,
+                        methodData.getJavadoc(),
+                        parameterJavadoc,
+                        renamedParameters,
+                        parameterOrder,
+                        replacements
+                );
 
                 // When replacements were made and activeParamets were added, we visit the method children here ourselves
                 // and clean up active parameters afterward
@@ -115,7 +142,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         } else if (element instanceof PsiReferenceExpression refExpr && refExpr.getReferenceNameElement() != null) {
             for (var entry : activeParameters.entrySet()) {
                 if (refExpr.isReferenceTo(entry.getKey())) {
-                    replacements.add(Replacement.create(refExpr.getReferenceNameElement(), entry.getValue().getName()));
+                    replacements.add(Replacement.replace(refExpr.getReferenceNameElement(), entry.getValue().getName()));
                     break;
                 }
             }
@@ -124,56 +151,11 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         element.acceptChildren(this);
     }
 
-    private void applyJavadoc(PsiJavaDocumentedElement method, List<String> javadoc, List<Replacement> replacements) {
-        if (!enableJavadoc) {
-            return;
-        }
-
-        if (!javadoc.isEmpty()) {
-            var existingDocComment = method.getDocComment();
-            if (existingDocComment != null) {
-                // replace right after
-                var textRange = existingDocComment.getTextRange();
-                replacements.add(
-                        new Replacement(
-                                new TextRange(textRange.getEndOffset(), textRange.getEndOffset()),
-                                "/**\n"
-                                        + javadoc.stream().map(line -> " * " + line + "\n")
-                                        .collect(Collectors.joining())
-                                        + " */\n"
-                        )
-                );
-            } else {
-                // Insert right before the method
-                int startOffset;
-                String indentText;
-                if (method.getPrevSibling() != null && method.getPrevSibling() instanceof PsiWhiteSpace psiWhiteSpace) {
-                    var lastNewline = psiWhiteSpace.getText().lastIndexOf('\n');
-                    var wsRange = psiWhiteSpace.getTextRange();
-                    // No newline, just take the entire whitespace as indent, and insert before
-                    if (lastNewline == -1) {
-                        indentText = " ".repeat(psiWhiteSpace.getTextLength());
-                        startOffset = wsRange.getEndOffset();
-                    } else {
-                        // Otherwise we inherit the whitespace as our own indent
-                        indentText = " ".repeat(psiWhiteSpace.getTextLength() - lastNewline - 1);
-                        startOffset = wsRange.getEndOffset();
-                    }
-                } else {
-                    indentText = "";
-                    startOffset = method.getTextRange().getStartOffset();
-                }
-                replacements.add(
-                        new Replacement(
-                                new TextRange(startOffset, startOffset),
-                                "/**\n"
-                                        + javadoc.stream().map(line -> indentText + " * " + line + "\n")
-                                        .collect(Collectors.joining())
-                                        + indentText + " */\n" + indentText
-                        )
-                );
-            }
+    private void applyJavadoc(PsiJavaDocumentedElement psiElement,
+                              List<String> javadoc,
+                              List<Replacement> replacements) {
+        if (enableJavadoc && !javadoc.isEmpty()) {
+            JavadocHelper.enrichJavadoc(psiElement, javadoc, replacements);
         }
     }
-
 }

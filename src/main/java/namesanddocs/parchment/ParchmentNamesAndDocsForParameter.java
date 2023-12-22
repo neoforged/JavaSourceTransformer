@@ -1,6 +1,7 @@
 package namesanddocs.parchment;
 
 import namesanddocs.NamesAndDocsForParameter;
+import org.jetbrains.annotations.Nullable;
 import org.parchmentmc.feather.mapping.MappingDataContainer;
 
 class ParchmentNamesAndDocsForParameter implements NamesAndDocsForParameter {
@@ -13,5 +14,10 @@ class ParchmentNamesAndDocsForParameter implements NamesAndDocsForParameter {
     @Override
     public String getName() {
         return parameterData.getName();
+    }
+
+    @Override
+    public @Nullable String getJavadoc() {
+        return parameterData.getJavadoc();
     }
 }

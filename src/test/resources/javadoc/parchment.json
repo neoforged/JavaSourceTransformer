@@ -1,0 +1,95 @@
+{
+  "version": "1.1.0",
+  "classes": [
+    {
+      "name": "ExistingJavadoc",
+      "javadoc": [
+        "Parchment Class Line 1",
+        "Parchment Class Line 2",
+        "Parchment Class Line 3"
+      ],
+      "fields": [
+        {
+          "name": "f",
+          "descriptor": "I",
+          "javadoc": [
+            "Parchment Field Line 1",
+            "Parchment Field Line 2",
+            "Parchment Field Line 3"
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "name": "m",
+          "descriptor": "(III)I",
+          "javadoc": [
+            "Parchment Method Line 1",
+            "Parchment Method Line 2",
+            "Parchment Method Line 3"
+          ],
+          "parameters": [
+            {
+              "index": 1,
+              "name": "newX",
+              "javadoc": "Parchment Parameter Documentation. Long oh so very long Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet"
+            },
+            {
+              "index": 2,
+              "name": "newY"
+            },
+            {
+              "index": 3,
+              "javadoc": "Javadoc only, no rename"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "NoExistingJavadoc",
+      "javadoc": [
+        "Parchment Class Line 1",
+        "Parchment Class Line 2",
+        "Parchment Class Line 3"
+      ],
+      "fields": [
+        {
+          "name": "f",
+          "descriptor": "I",
+          "javadoc": [
+            "Parchment Field Line 1",
+            "Parchment Field Line 2",
+            "Parchment Field Line 3"
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "name": "m",
+          "descriptor": "(III)I",
+          "javadoc": [
+            "Parchment Method Line 1",
+            "Parchment Method Line 2",
+            "Parchment Method Line 3"
+          ],
+          "parameters": [
+            {
+              "index": 1,
+              "name": "newX",
+              "javadoc": "Parchment Parameter Documentation. Long oh so very long Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet"
+            },
+            {
+              "index": 2,
+              "name": "newY"
+            },
+            {
+              "index": 3,
+              "javadoc": "Javadoc only, no rename"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
