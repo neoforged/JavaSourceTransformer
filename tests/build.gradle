@@ -1,0 +1,45 @@
+plugins {
+    id 'java-library'
+}
+
+configurations {
+    cli {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
+}
+
+dependencies {
+    cli project(path: ':cli', configuration: 'shadow')
+    testImplementation project(path: ':cli', configuration: 'shadow')
+
+    testImplementation platform("org.junit:junit-bom:$junit_version")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation "org.assertj:assertj-core:$assertj_version"
+}
+
+abstract class ExecutableArgumentProvider implements CommandLineArgumentProvider {
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getConfiguration()
+
+    @Override
+    Iterable<String> asArguments() {
+        ["-Djst.executableJar=${configuration.singleFile}"]
+    }
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgumentProviders.add(
+            objects.newInstance(ExecutableArgumentProvider).tap {
+                configuration = configurations.cli
+            }
+    )
+    systemProperty("jst.testDataDir", "${project.projectDir}/data")
+
+    if (Boolean.getBoolean("test.debug") || Boolean.getBoolean("jst.debug") || System.getProperty("idea.debugger.dispatch.port") != null) {
+        systemProperty("jst.debug", "true")
+    }
+}

@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow'
+}
+
+group = 'net.neoforged.jst'
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'net.neoforged.jst.cli.Main'
+    }
+}
+
+dependencies {
+    implementation project(":api")
+    implementation "info.picocli:picocli:$picocli_version"
+    implementation project(":parchment")
+
+    testImplementation platform("org.junit:junit-bom:$junit_version")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+assemble.configure {
+    dependsOn shadowJar
+}
+
+// This skips the shadowjar from being published as part of the normal publication
+components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
+    skip()
+}
+
+publishing {
+    publications {
+        // This publication only contains the unshaded jar with dependencies in the pom.xml
+        plain(MavenPublication) {
+            artifactId = 'jst-cli'
+
+            from components.java
+        }
+        // This publication only contains the shaded standalone jar
+        bundle(MavenPublication) {
+            artifactId = 'jst-cli-bundle'
+
+            project.shadow.component(bundle)
+        }
+    }
+}

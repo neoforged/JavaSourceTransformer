@@ -1,0 +1,9 @@
+plugins {
+    id "java-library"
+}
+
+dependencies {
+    implementation project(":api")
+    implementation 'org.parchmentmc.feather:io-gson:1.1.0'
+    implementation 'net.fabricmc:mapping-io:0.5.1'
+}

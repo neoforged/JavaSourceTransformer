@@ -1,0 +1,11 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'net.neoforged.jst'
+
+dependencies {
+    api "com.jetbrains.intellij.java:java-psi-impl:$intellij_version"
+    api "info.picocli:picocli:$picocli_version"
+    compileOnly "org.jetbrains:annotations:$jetbrains_annotations_version"
+}

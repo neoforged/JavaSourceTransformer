@@ -7,4 +7,25 @@ pluginManagement {
         id 'net.neoforged.gradleutils' version '3.0.0-alpha.8'
     }
 }
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://www.jetbrains.com/intellij-repository/releases/"
+        }
+        maven {
+            url "https://cache-redirector.jetbrains.com/intellij-dependencies/"
+        }
+        maven {
+            url "https://maven.parchmentmc.org/"
+        }
+    }
+}
+
 rootProject.name = 'JavaSourceTransformer'
+
+include 'api'
+include 'cli'
+include 'parchment'
+include 'tests'

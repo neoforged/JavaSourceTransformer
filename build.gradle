@@ -1,68 +1,12 @@
 plugins {
-    id 'java'
     id 'maven-publish'
-    id 'com.github.johnrengelman.shadow'
     id 'net.neoforged.gradleutils'
 }
 
 group = "net.neoforged"
 project.version = gradleutils.version
 
-jar {
-    manifest {
-        attributes 'Main-Class': 'ApplyParchmentToSourceJar'
-    }
-}
-
-repositories {
-    mavenCentral()
-    maven {
-        url "https://www.jetbrains.com/intellij-repository/releases/"
-    }
-    maven {
-        url "https://cache-redirector.jetbrains.com/intellij-dependencies/"
-    }
-    maven {
-        url "https://maven.parchmentmc.org/"
-    }
-}
-
-dependencies {
-    implementation 'com.jetbrains.intellij.java:java-psi-impl:233.11799.300'
-
-    implementation 'org.parchmentmc.feather:io-gson:1.1.0'
-    implementation 'net.fabricmc:mapping-io:0.5.1'
-
-    testImplementation platform('org.junit:junit-bom:5.9.1')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-}
-
-test {
-    useJUnitPlatform()
-}
-
-assemble.configure {
-    dependsOn shadowJar
-}
-
-// This skips the shadowjar from being published as part of the normal publication
-components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
-    skip()
-}
-
-publishing {
-    publications {
-        // This publication only contains the unshaded jar with dependencies in the pom.xml
-        plain(MavenPublication) {
-            artifactId = 'apply-parchment'
-
-            from components.java
-        }
-        // This publication only contains the shaded standalone jar
-        bundle(MavenPublication) {
-            artifactId = 'apply-parchment-bundle'
-
-            project.shadow.component(bundle)
-        }
-    }
+subprojects {
+    group = rootProject.group
+    version = rootProject.version
 }
