@@ -3,15 +3,16 @@ package net.neoforged.jst.cli.io;
 import com.intellij.openapi.vfs.StandardFileSystems;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
-import net.neoforged.jst.api.FileSource;
+import net.neoforged.jst.api.FileEntries;
 import net.neoforged.jst.api.FileEntry;
+import net.neoforged.jst.api.FileSource;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
-public class ArchiveFileSource implements FileSource {
+class ArchiveFileSource implements FileSource {
     private final Path path;
     private final ZipFile zipFile;
 
@@ -27,7 +28,12 @@ public class ArchiveFileSource implements FileSource {
 
     @Override
     public Stream<FileEntry> streamEntries() {
-        return zipFile.stream().map(ze -> new ZipFileEntry(zipFile, ze));
+        return zipFile.stream().map(ze -> FileEntries.ofZipEntry(zipFile, ze));
+    }
+
+    @Override
+    public boolean canHaveMultipleEntries() {
+        return true;
     }
 
     @Override

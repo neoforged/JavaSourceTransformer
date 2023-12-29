@@ -17,19 +17,22 @@ import java.util.concurrent.Callable;
 @CommandLine.Command(name = "jst", mixinStandardHelpOptions = true, usageHelpWidth = 100)
 public class Main implements Callable<Integer> {
     @CommandLine.Parameters(index = "0", paramLabel = "INPUT", description = "Path to a single Java-file, a source-archive or a folder containing the source to transform.")
-    private Path inputPath;
+    Path inputPath;
 
     @CommandLine.Parameters(index = "1", paramLabel = "OUTPUT", description = "Path to where the resulting source should be placed.")
-    private Path outputPath;
+    Path outputPath;
 
     @CommandLine.Option(names = "--in-format", description = "Specify the format of INPUT explicitly. AUTO (the default) performs auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE for source jars or zips, and FOLDER for folders containing Java code.")
-    private PathType inputFormat = PathType.AUTO;
+    PathType inputFormat = PathType.AUTO;
 
     @CommandLine.Option(names = "--out-format", description = "Specify the format of OUTPUT explicitly. Allows the same options as --in-format.")
-    private PathType outputFormat = PathType.AUTO;
+    PathType outputFormat = PathType.AUTO;
 
     @CommandLine.Option(names = "--libraries-list", description = "Specifies a file that contains a path to an archive or directory to add to the classpath on each line.")
-    private Path librariesList;
+    Path librariesList;
+
+    @CommandLine.Option(names = "--max-queue-depth", description = "When both input and output support ordering (archives), the transformer will try to maintain that order. To still process items in parallel, a queue is used. Larger queue depths lead to higher memory usage.")
+    int maxQueueDepth = 100;
 
     private final HashSet<SourceTransformer> enabledTransformers = new HashSet<>();
 
@@ -44,6 +47,7 @@ public class Main implements Callable<Integer> {
 
         var main = new Main();
         var commandLine = new CommandLine(main);
+        commandLine.setCaseInsensitiveEnumValuesAllowed(true);
         var spec = commandLine.getCommandSpec();
 
         main.setupPluginCliOptions(plugins, spec);
@@ -59,6 +63,8 @@ public class Main implements Callable<Integer> {
             if (librariesList != null) {
                 processor.addLibrariesList(librariesList);
             }
+
+            processor.setMaxQueueDepth(maxQueueDepth);
 
             var orderedTransformers = new ArrayList<>(enabledTransformers);
 
@@ -106,73 +112,4 @@ public class Main implements Callable<Integer> {
             spec.addArgGroup(builder.build());
         }
     }
-
-//
-//    void poo() {
-//        String[] args = new String[0];
-//
-//        Path inputPath = null, outputPath = null, namesAndDocsPath = null, librariesPath = null;
-//        boolean enableJavadoc = true;
-//        int queueDepth = 50;
-//
-//        for (int i = 0; i < args.length; i++) {
-//            var arg = args[i];
-//            switch (arg) {
-//                case "--in":
-//                    if (i + 1 >= args.length) {
-//                        System.err.println("Missing argument for --in");
-//                        System.exit(1);
-//                    }
-//                    inputPath = Paths.get(args[++i]);
-//                    break;
-//                case "--out":
-//                    if (i + 1 >= args.length) {
-//                        System.err.println("Missing argument for --out");
-//                        System.exit(1);
-//                    }
-//                    outputPath = Paths.get(args[++i]);
-//                    break;
-//                case "--libraries":
-//                    if (i + 1 >= args.length) {
-//                        System.err.println("Missing argument for --libraries");
-//                        System.exit(1);
-//                    }
-//                    librariesPath = Paths.get(args[++i]);
-//                    break;
-//                case "--names":
-//                    if (i + 1 >= args.length) {
-//                        System.err.println("Missing argument for --names");
-//                        System.exit(1);
-//                    }
-//                    namesAndDocsPath = Paths.get(args[++i]);
-//                    break;
-//                case "--skip-javadoc":
-//                    enableJavadoc = false;
-//                    break;
-//                case "--queue-depth":
-//                    if (i + 1 >= args.length) {
-//                        System.err.println("Missing argument for --queue-depth");
-//                        System.exit(1);
-//                    }
-//                    queueDepth = Integer.parseUnsignedInt(args[++i]);
-//                    break;
-//                case "--help":
-//                    printUsage(System.out);
-//                    System.exit(0);
-//                    break;
-//                default:
-//                    System.err.println("Unknown argument: " + arg);
-//                    printUsage(System.err);
-//                    System.exit(1);
-//                    break;
-//            }
-//        }
-//
-//        if (inputPath == null || outputPath == null || namesAndDocsPath == null) {
-//            System.err.println("Missing arguments");
-//            printUsage(System.err);
-//            System.exit(1);
-//        }
-//
-//    }
 }

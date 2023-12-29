@@ -19,6 +19,9 @@ dependencies {
     testImplementation "org.assertj:assertj-core:$assertj_version"
 }
 
+/**
+ * Delayed expansion for passing the path to the executable jar to the tests via system property.
+ */
 abstract class ExecutableArgumentProvider implements CommandLineArgumentProvider {
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
@@ -38,8 +41,4 @@ test {
             }
     )
     systemProperty("jst.testDataDir", "${project.projectDir}/data")
-
-    if (Boolean.getBoolean("test.debug") || Boolean.getBoolean("jst.debug") || System.getProperty("idea.debugger.dispatch.port") != null) {
-        systemProperty("jst.debug", "true")
-    }
 }

@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -24,13 +26,15 @@ import java.util.List;
 class SourceFileProcessor implements AutoCloseable {
     private final IntelliJEnvironmentImpl ijEnv = new IntelliJEnvironmentImpl();
     private int maxQueueDepth = 50;
-    private boolean enableJavadoc = true;
 
     public SourceFileProcessor() throws IOException {
         ijEnv.addCurrentJdkToClassPath();
     }
 
     public void process(FileSource source, FileSink sink, List<SourceTransformer> transformers) throws IOException {
+        if (source.canHaveMultipleEntries() && !sink.canHaveMultipleEntries()) {
+            throw new IllegalStateException("Cannot have an input with possibly more than one file when the output is a single file.");
+        }
 
         var context = new TransformContext(ijEnv, source, sink);
 
@@ -44,14 +48,22 @@ class SourceFileProcessor implements AutoCloseable {
         if (sink.isOrdered()) {
             try (var stream = source.streamEntries()) {
                 stream.forEach(entry -> {
-                    processEntry(entry, sourceRoot, transformers, sink);
+                    try {
+                        processEntry(entry, sourceRoot, transformers, sink);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
                 });
             }
         } else {
             try (var asyncOut = new OrderedParallelWorkQueue(sink, maxQueueDepth);
                  var stream = source.streamEntries()) {
                 stream.forEach(entry -> asyncOut.submitAsync(parallelSink -> {
-                    processEntry(entry, sourceRoot, transformers, parallelSink);
+                    try {
+                        processEntry(entry, sourceRoot, transformers, parallelSink);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
                 }));
             }
         }
@@ -61,15 +73,23 @@ class SourceFileProcessor implements AutoCloseable {
         }
     }
 
-    private void processEntry(FileEntry entry, VirtualFile sourceRoot, List<SourceTransformer> transformers, FileSink sink) {
+    private void processEntry(FileEntry entry, VirtualFile sourceRoot, List<SourceTransformer> transformers, FileSink sink) throws IOException {
+        if (entry.directory()) {
+            sink.putDirectory(entry.relativePath());
+            return;
+        }
+
         try (var in = entry.openInputStream()) {
             byte[] content = in.readAllBytes();
+            var lastModified = entry.lastModified();
             if (entry.hasExtension("java")) {
+                var orgContent = content;
                 content = transformSource(sourceRoot, entry.relativePath(), transformers, content);
+                if (orgContent != content) {
+                    lastModified = FileTime.from(Instant.now());
+                }
             }
-            sink.put(entry, content);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            sink.putFile(entry.relativePath(), lastModified, content);
         }
     }
 
@@ -109,16 +129,12 @@ class SourceFileProcessor implements AutoCloseable {
         this.maxQueueDepth = maxQueueDepth;
     }
 
-    public void setEnableJavadoc(boolean enableJavadoc) {
-        this.enableJavadoc = enableJavadoc;
+    public void addLibrariesList(Path librariesList) throws IOException {
+        ClasspathSetup.addLibraries(librariesList, ijEnv);
     }
 
     @Override
     public void close() throws IOException {
         ijEnv.close();
-    }
-
-    public void addLibrariesList(Path librariesList) throws IOException {
-        ClasspathSetup.addLibraries(librariesList, ijEnv);
     }
 }

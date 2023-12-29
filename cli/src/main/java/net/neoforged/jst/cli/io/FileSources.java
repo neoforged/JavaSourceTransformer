@@ -34,7 +34,7 @@ public final class FileSources {
                     throw new IOException("Cannot detect type of " + path + " it is neither file nor folder.");
                 }
             }
-            case SINGLE_FILE -> {
+            case FILE -> {
                 if (!Files.isRegularFile(path)) {
                     throw new IOException("Expected " + path + " to be a file.");
                 }

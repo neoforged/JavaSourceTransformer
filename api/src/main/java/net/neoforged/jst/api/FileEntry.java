@@ -2,6 +2,7 @@ package net.neoforged.jst.api;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.attribute.FileTime;
 import java.util.Locale;
 
 public interface FileEntry {
@@ -18,7 +19,7 @@ public interface FileEntry {
     /**
      * @return Millis since epoch denoting when the file was last modified. 0 for directories.
      */
-    long lastModified();
+    FileTime lastModified();
 
     /**
      * @return An input stream to read this content.

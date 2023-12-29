@@ -5,6 +5,7 @@ import net.neoforged.jst.api.FileSource;
 import net.neoforged.jst.cli.PathType;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class FileSinks {
@@ -14,9 +15,13 @@ public final class FileSinks {
     public static FileSink create(Path path, PathType format, FileSource source) throws IOException {
         if (format == PathType.AUTO) {
             if (source instanceof SingleFileSource) {
-                format = PathType.SINGLE_FILE;
+                format = PathType.FILE;
             } else if (source instanceof ArchiveFileSource) {
-                format = PathType.ARCHIVE;
+                if (Files.isDirectory(path)) {
+                    format = PathType.FOLDER;
+                } else {
+                    format = PathType.ARCHIVE;
+                }
             } else if (source instanceof FolderFileSource) {
                 format = PathType.FOLDER;
             } else {
@@ -26,7 +31,7 @@ public final class FileSinks {
 
         return switch (format) {
             case AUTO -> throw new IllegalArgumentException("Do not support AUTO for output when input also was AUTO!");
-            case SINGLE_FILE -> new SingleFileSink(path);
+            case FILE -> new SingleFileSink(path);
             case ARCHIVE -> new ArchiveFileSink(path);
             case FOLDER -> new FolderFileSink(path);
         };

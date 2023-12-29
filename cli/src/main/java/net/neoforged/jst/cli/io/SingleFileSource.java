@@ -2,13 +2,18 @@ package net.neoforged.jst.cli.io;
 
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
-import net.neoforged.jst.api.FileSource;
+import net.neoforged.jst.api.FileEntries;
 import net.neoforged.jst.api.FileEntry;
+import net.neoforged.jst.api.FileSource;
 
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
-public record SingleFileSource(Path path) implements FileSource, AutoCloseable {
+record SingleFileSource(Path path) implements FileSource, AutoCloseable {
+    SingleFileSource(Path path) {
+        this.path = path.toAbsolutePath();
+    }
+
     @Override
     public VirtualFile createSourceRoot(VirtualFileManager vfsManager) {
         return vfsManager.findFileByNioPath(path.getParent());
@@ -16,7 +21,12 @@ public record SingleFileSource(Path path) implements FileSource, AutoCloseable {
 
     @Override
     public Stream<FileEntry> streamEntries() {
-        return Stream.of(new PathEntry(path.getParent(), path));
+        return Stream.of(FileEntries.ofPath(path.getParent(), path));
+    }
+
+    @Override
+    public boolean canHaveMultipleEntries() {
+        return false;
     }
 
     @Override

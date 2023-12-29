@@ -11,6 +11,8 @@ public interface FileSource extends AutoCloseable {
 
     Stream<FileEntry> streamEntries() throws IOException;
 
+    boolean canHaveMultipleEntries();
+
     boolean isOrdered();
 
     @Override

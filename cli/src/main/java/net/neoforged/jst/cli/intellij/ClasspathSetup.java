@@ -23,6 +23,9 @@ public final class ClasspathSetup {
 
     public static void addJdkModules(Path jdkHome, JavaCoreProjectEnvironment javaEnv) {
         var jrtFileSystem = javaEnv.getEnvironment().getJrtFileSystem();
+        if (jrtFileSystem == null) {
+            throw new IllegalStateException("No JRT file system was configured");
+        }
 
         VirtualFile jdkVfsRoot = jrtFileSystem.findFileByPath(jdkHome.toAbsolutePath() + URLUtil.JAR_SEPARATOR);
         if (jdkVfsRoot == null) {
@@ -62,19 +65,25 @@ public final class ClasspathSetup {
     }
 
     public static void addLibraries(Path librariesPath, IntelliJEnvironmentImpl ijEnv) throws IOException {
-        var libraryFiles = Files.readAllLines(librariesPath)
-                .stream()
-                .filter(l -> l.startsWith("-e="))
-                .map(l -> l.substring(3))
-                .map(Paths::get)
-                .toList();
+        for (String libraryLine : Files.readAllLines(librariesPath)) {
+            libraryLine = libraryLine.trim();
 
-        for (var libraryFile : libraryFiles) {
-            if (!Files.exists(libraryFile)) {
-                throw new UncheckedIOException(new FileNotFoundException(libraryFile.toString()));
+            // Support the fucked up list-libraries format of Vineflower command-line options
+            if (libraryLine.startsWith("-e=")) {
+                libraryLine = libraryLine.substring("-e=".length());
             }
-            ijEnv.addJarToClassPath(libraryFile);
-            System.out.println("Added " + libraryFile);
+
+            if (libraryLine.isBlank()) {
+                continue;
+            }
+
+            var libraryPath = Paths.get(libraryLine);
+
+            if (!Files.exists(libraryPath)) {
+                throw new UncheckedIOException(new FileNotFoundException(libraryLine));
+            }
+            ijEnv.addJarToClassPath(libraryPath);
+            System.out.println("Added " + libraryPath);
         }
     }
 

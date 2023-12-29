@@ -1,6 +1,5 @@
 package net.neoforged.jst.cli.io;
 
-import net.neoforged.jst.api.FileEntry;
 import net.neoforged.jst.api.FileSink;
 
 import java.io.IOException;
@@ -8,12 +7,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 
-public record FolderFileSink(Path path) implements FileSink {
+record FolderFileSink(Path path) implements FileSink {
     @Override
-    public void put(FileEntry entry, byte[] content) throws IOException {
-        var targetPath = path.resolve(entry.relativePath());
+    public void putDirectory(String relativePath) throws IOException {
+        var targetPath = path.resolve(relativePath);
+        Files.createDirectories(targetPath);
+    }
+
+    @Override
+    public void putFile(String relativePath, FileTime lastModified, byte[] content) throws IOException {
+        var targetPath = path.resolve(relativePath);
         Files.write(targetPath, content);
-        Files.setLastModifiedTime(path, FileTime.fromMillis(entry.lastModified()));
+        Files.setLastModifiedTime(targetPath, lastModified);
+    }
+
+    @Override
+    public boolean canHaveMultipleEntries() {
+        return true;
     }
 
     @Override

@@ -1,10 +1,10 @@
 package net.neoforged.jst.cli;
 
-import net.neoforged.jst.api.FileEntry;
 import net.neoforged.jst.api.FileSink;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -61,8 +61,13 @@ class OrderedParallelWorkQueue implements AutoCloseable {
         }
     }
 
-    private static final class ParallelSink implements FileSink {
+    private final class ParallelSink implements FileSink {
         private final List<WorkResult> workResults = new ArrayList<>();
+
+        @Override
+        public boolean canHaveMultipleEntries() {
+            return sink.canHaveMultipleEntries();
+        }
 
         @Override
         public boolean isOrdered() {
@@ -70,8 +75,13 @@ class OrderedParallelWorkQueue implements AutoCloseable {
         }
 
         @Override
-        public void put(FileEntry entry, byte[] content) {
-            workResults.add(new WorkResult(entry, content));
+        public void putDirectory(String relativePath) {
+            workResults.add(new WorkResult(true, relativePath, null, null));
+        }
+
+        @Override
+        public void putFile(String relativePath, FileTime lastModified, byte[] content) {
+            workResults.add(new WorkResult(false, relativePath, lastModified, content));
         }
     }
 
@@ -87,7 +97,11 @@ class OrderedParallelWorkQueue implements AutoCloseable {
                 throw new RuntimeException(e.getCause());
             }
             for (var workResult : workResults) {
-                sink.put(workResult.entry, workResult.content);
+                if (workResult.directory) {
+                    sink.putDirectory(workResult.relativePath);
+                } else {
+                    sink.putFile(workResult.relativePath, workResult.lastModified, workResult.content);
+                }
             }
         }
     }
@@ -103,6 +117,6 @@ class OrderedParallelWorkQueue implements AutoCloseable {
         }
     }
 
-    private record WorkResult(FileEntry entry, byte[] content) {
+    private record WorkResult(boolean directory, String relativePath, FileTime lastModified, byte[] content) {
     }
 }

@@ -1,9 +1,10 @@
-package net.neoforged.jst.cli.io;
+package net.neoforged.jst.api;
 
 import net.neoforged.jst.api.FileEntry;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.attribute.FileTime;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -27,8 +28,8 @@ class ZipFileEntry implements FileEntry {
     }
 
     @Override
-    public long lastModified() {
-        return zipEntry.getLastModifiedTime().toMillis();
+    public FileTime lastModified() {
+        return zipEntry.getLastModifiedTime();
     }
 
     @Override

@@ -1,29 +1,26 @@
-package net.neoforged.jst.cli.io;
-
-import net.neoforged.jst.api.FileEntry;
+package net.neoforged.jst.api;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 
-final class PathEntry implements FileEntry {
-    private final Path relativeTo;
+final class PathFileEntry implements FileEntry {
     private final Path path;
     private final String relativePath;
     private final boolean directory;
-    private final long lastModified;
+    private final FileTime lastModified;
 
-    public PathEntry(Path relativeTo, Path path) {
+    public PathFileEntry(Path relativeTo, Path path) {
         this.directory = Files.isDirectory(path);
-        this.relativeTo = relativeTo;
         this.path = path;
         var relativized = relativeTo.relativize(path).toString();
         relativized = relativized.replace('\\', '/');
         this.relativePath = relativized;
         try {
-            this.lastModified = Files.getLastModifiedTime(path).toMillis();
+            this.lastModified = Files.getLastModifiedTime(path);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -40,7 +37,7 @@ final class PathEntry implements FileEntry {
     }
 
     @Override
-    public long lastModified() {
+    public FileTime lastModified() {
         return lastModified;
     }
 

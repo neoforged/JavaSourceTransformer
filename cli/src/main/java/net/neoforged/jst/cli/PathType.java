@@ -2,7 +2,7 @@ package net.neoforged.jst.cli;
 
 public enum PathType {
     AUTO,
-    SINGLE_FILE,
+    FILE,
     ARCHIVE,
     FOLDER
 }
