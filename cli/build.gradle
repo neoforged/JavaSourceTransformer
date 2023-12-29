@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow'
+    id 'maven-publish'
 }
 
 group = 'net.neoforged.jst'

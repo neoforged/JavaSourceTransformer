@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 /**
  * Runs the same tests as {@link EmbeddedTest}, but runs them by actually running the executable jar
  * in an external process.
@@ -34,6 +32,8 @@ public class ExecutableJarTest extends EmbeddedTest {
         System.out.println(new String(output));
 
         int exitCode = process.waitFor();
-        assertEquals(0, exitCode);
+        if (exitCode != 0) {
+            throw new RuntimeException(new String(output));
+        }
     }
 }
