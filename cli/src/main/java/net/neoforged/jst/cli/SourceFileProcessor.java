@@ -1,12 +1,15 @@
 package net.neoforged.jst.cli;
 
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileManager;
+import net.neoforged.jst.api.FileEntry;
+import net.neoforged.jst.api.FileSink;
+import net.neoforged.jst.api.FileSource;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
+import net.neoforged.jst.api.TransformContext;
 import net.neoforged.jst.cli.intellij.ClasspathSetup;
-import net.neoforged.jst.cli.intellij.IntelliJEnvironment;
-import net.neoforged.jst.cli.io.Sink;
-import net.neoforged.jst.cli.io.Source;
+import net.neoforged.jst.cli.intellij.IntelliJEnvironmentImpl;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -19,7 +22,7 @@ import java.util.List;
  * https://github.com/JetBrains/kotlin/blob/22aa9ee65f759ad21aeaeb8ad9ac0b123b2c32fe/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt#L108
  */
 class SourceFileProcessor implements AutoCloseable {
-    private final IntelliJEnvironment ijEnv = new IntelliJEnvironment();
+    private final IntelliJEnvironmentImpl ijEnv = new IntelliJEnvironmentImpl();
     private int maxQueueDepth = 50;
     private boolean enableJavadoc = true;
 
@@ -27,53 +30,46 @@ class SourceFileProcessor implements AutoCloseable {
         ijEnv.addCurrentJdkToClassPath();
     }
 
-    public void process(Source source, Sink sink, List<SourceTransformer> transformers) throws IOException, InterruptedException {
+    public void process(FileSource source, FileSink sink, List<SourceTransformer> transformers) throws IOException {
 
-        var sourceRoot = source.createSourceRoot(ijEnv.getAppEnv());
+        var context = new TransformContext(ijEnv, source, sink);
+
+        var sourceRoot = source.createSourceRoot(VirtualFileManager.getInstance());
         ijEnv.addSourceRoot(sourceRoot);
 
         for (var transformer : transformers) {
-            transformer.beforeRun();
+            transformer.beforeRun(context);
         }
-        var javaEnv = ijEnv.getProjectEnv();
 
         if (sink.isOrdered()) {
-//            var asyncZout = new OrderedWorkQueue(new ZipOutputStream(fout), maxQueueDepth);
-
-            source.streamEntries().forEach(entry -> {
-
-                try (var in = entry.openInputStream()) {
-                    if (entry.hasExtension("java")) {
-                        var content = in.readAllBytes();
-                        content = transformSource(sourceRoot, entry.relativePath(), transformers, content);
-                        sink.put(entry, content);
-                    } else {
-                        sink.put(entry, in);
-                    }
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            });
+            try (var stream = source.streamEntries()) {
+                stream.forEach(entry -> {
+                    processEntry(entry, sourceRoot, transformers, sink);
+                });
+            }
         } else {
-
-            source.streamEntries().parallel().forEach(entry -> {
-                try (var in = entry.openInputStream()) {
-                    if (entry.hasExtension("java")) {
-                        var content = in.readAllBytes();
-                        content = transformSource(sourceRoot, entry.relativePath(), transformers, content);
-                        sink.put(entry, content);
-                    } else {
-                        sink.put(entry, in);
-                    }
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            });
-
+            try (var asyncOut = new OrderedParallelWorkQueue(sink, maxQueueDepth);
+                 var stream = source.streamEntries()) {
+                stream.forEach(entry -> asyncOut.submitAsync(parallelSink -> {
+                    processEntry(entry, sourceRoot, transformers, parallelSink);
+                }));
+            }
         }
 
         for (var transformer : transformers) {
-            transformer.afterRun();
+            transformer.afterRun(context);
+        }
+    }
+
+    private void processEntry(FileEntry entry, VirtualFile sourceRoot, List<SourceTransformer> transformers, FileSink sink) {
+        try (var in = entry.openInputStream()) {
+            byte[] content = in.readAllBytes();
+            if (entry.hasExtension("java")) {
+                content = transformSource(sourceRoot, entry.relativePath(), transformers, content);
+            }
+            sink.put(entry, content);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

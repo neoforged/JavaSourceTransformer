@@ -2,8 +2,8 @@ package net.neoforged.jst.cli;
 
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.SourceTransformerPlugin;
-import net.neoforged.jst.cli.io.Sink;
-import net.neoforged.jst.cli.io.Source;
+import net.neoforged.jst.cli.io.FileSinks;
+import net.neoforged.jst.cli.io.FileSources;
 import org.jetbrains.annotations.VisibleForTesting;
 import picocli.CommandLine;
 
@@ -53,7 +53,7 @@ public class Main implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
 
-        try (var source = new Source(inputPath, inputFormat);
+        try (var source = FileSources.create(inputPath, inputFormat);
              var processor = new SourceFileProcessor()) {
 
             if (librariesList != null) {
@@ -62,7 +62,7 @@ public class Main implements Callable<Integer> {
 
             var orderedTransformers = new ArrayList<>(enabledTransformers);
 
-            try (var sink = new Sink(source, outputPath, outputFormat)) {
+            try (var sink = FileSinks.create(outputPath, outputFormat, source)) {
                 processor.process(source, sink, orderedTransformers);
             }
 

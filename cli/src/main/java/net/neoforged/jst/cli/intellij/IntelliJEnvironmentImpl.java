@@ -32,6 +32,7 @@ import com.intellij.psi.impl.PsiTreeChangePreprocessor;
 import com.intellij.psi.impl.source.tree.JavaTreeGenerator;
 import com.intellij.psi.impl.source.tree.TreeGenerator;
 import com.intellij.psi.util.JavaClassSupers;
+import net.neoforged.jst.api.IntelliJEnvironment;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
 
-public class IntelliJEnvironment implements AutoCloseable {
+public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseable {
 
     private final Disposable rootDisposable;
     private final Path tempDir;
@@ -48,10 +49,10 @@ public class IntelliJEnvironment implements AutoCloseable {
     private final JavaCoreProjectEnvironment javaEnv;
     private final PsiManager psiManager;
 
-    public IntelliJEnvironment() throws IOException {
+    public IntelliJEnvironmentImpl() throws IOException {
         System.setProperty("java.awt.headless", "true");
 
-        tempDir = Files.createTempDirectory("applyparchment");
+        tempDir = Files.createTempDirectory("jst");
         this.rootDisposable = Disposer.newDisposable();
         System.setProperty("idea.home.path", tempDir.toAbsolutePath().toString());
 
@@ -78,14 +79,17 @@ public class IntelliJEnvironment implements AutoCloseable {
         psiManager = PsiManager.getInstance(project);
     }
 
+    @Override
     public PsiManager getPsiManager() {
         return psiManager;
     }
 
+    @Override
     public CoreApplicationEnvironment getAppEnv() {
         return javaEnv.getEnvironment();
     }
 
+    @Override
     public JavaCoreProjectEnvironment getProjectEnv() {
         return javaEnv;
     }

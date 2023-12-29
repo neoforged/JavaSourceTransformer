@@ -3,6 +3,7 @@ package net.neoforged.jst.parchment;
 import com.intellij.psi.PsiFile;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
+import net.neoforged.jst.api.TransformContext;
 import net.neoforged.jst.parchment.namesanddocs.NameAndDocSourceLoader;
 import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsDatabase;
 import picocli.CommandLine;
@@ -21,7 +22,7 @@ public class ParchmentTransformer implements SourceTransformer {
     private NamesAndDocsDatabase namesAndDocs;
 
     @Override
-    public void beforeRun() {
+    public void beforeRun(TransformContext context) {
         System.out.println("Loading mapping file " + mappingsPath);
         try {
             namesAndDocs = NameAndDocSourceLoader.load(mappingsPath);

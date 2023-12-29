@@ -61,7 +61,7 @@ public final class ClasspathSetup {
         System.out.println("Added " + moduleCount + " modules from " + jdkHome);
     }
 
-    public static void addLibraries(Path librariesPath, IntelliJEnvironment ijEnv) throws IOException {
+    public static void addLibraries(Path librariesPath, IntelliJEnvironmentImpl ijEnv) throws IOException {
         var libraryFiles = Files.readAllLines(librariesPath)
                 .stream()
                 .filter(l -> l.startsWith("-e="))

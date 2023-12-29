@@ -5,7 +5,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiTreeUtil;
 import net.neoforged.jst.api.PsiHelper;
-import net.neoforged.jst.cli.intellij.IntelliJEnvironment;
+import net.neoforged.jst.cli.intellij.IntelliJEnvironmentImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,11 +17,11 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class PsiHelperTest {
-    static IntelliJEnvironment ijEnv;
+    static IntelliJEnvironmentImpl ijEnv;
 
     @BeforeAll
     static void setUp() throws IOException {
-        ijEnv = new IntelliJEnvironment();
+        ijEnv = new IntelliJEnvironmentImpl();
     }
 
     @AfterAll

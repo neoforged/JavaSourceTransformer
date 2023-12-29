@@ -1,19 +1,21 @@
 package net.neoforged.jst.cli.io;
 
+import net.neoforged.jst.api.FileEntry;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-final class PathSourceEntry implements SourceEntry {
+final class PathEntry implements FileEntry {
     private final Path relativeTo;
     private final Path path;
     private final String relativePath;
     private final boolean directory;
     private final long lastModified;
 
-    public PathSourceEntry(Path relativeTo, Path path) {
+    public PathEntry(Path relativeTo, Path path) {
         this.directory = Files.isDirectory(path);
         this.relativeTo = relativeTo;
         this.path = path;

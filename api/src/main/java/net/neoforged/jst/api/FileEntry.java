@@ -1,10 +1,10 @@
-package net.neoforged.jst.cli.io;
+package net.neoforged.jst.api;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;
 
-public interface SourceEntry {
+public interface FileEntry {
     /**
      * @return True for directories.
      */

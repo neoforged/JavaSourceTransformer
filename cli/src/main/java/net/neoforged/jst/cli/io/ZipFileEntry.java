@@ -1,15 +1,17 @@
 package net.neoforged.jst.cli.io;
 
+import net.neoforged.jst.api.FileEntry;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-class ZipFileSourceEntry implements SourceEntry {
+class ZipFileEntry implements FileEntry {
     private final ZipFile zipFile;
     private final ZipEntry zipEntry;
 
-    public ZipFileSourceEntry(ZipFile zipFile, ZipEntry zipEntry) {
+    public ZipFileEntry(ZipFile zipFile, ZipEntry zipEntry) {
         this.zipFile = zipFile;
         this.zipEntry = zipEntry;
     }
