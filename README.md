@@ -27,14 +27,32 @@ the [NeoGradle](https://github.com/neoforged/NeoGradle) build process.
 It can be invoked as a standalone executable Jar-File. Java 17 is required.
 
 ```
-Arguments:
-  --in <input-file>      Path to input source-jar
-  --out <output-file>    Path where new source-jar will be written
-  --names <names-file>   Path to Parchment mappings (JSON or ZIP) or merged TSRG2-mappings
-  --skip-javadoc         Don't apply Javadocs
-  --queue-depth <depth>  How many source files to wait for in parallel. 0 for synchronous processing.
-                         0 for synchronous processing. Default is 50.
-  --help                 Print help
+Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
+           [--max-queue-depth=<maxQueueDepth>] [--out-format=<outputFormat>] [--enable-parchment
+           --parchment-mappings=<mappingsPath> [--parchment-javadoc]] INPUT OUTPUT
+      INPUT                 Path to a single Java-file, a source-archive or a folder containing the
+                              source to transform.
+      OUTPUT                Path to where the resulting source should be placed.
+  -h, --help                Show this help message and exit.
+      --in-format=<inputFormat>
+                            Specify the format of INPUT explicitly. AUTO (the default) performs
+                              auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE
+                              for source jars or zips, and FOLDER for folders containing Java code.
+      --libraries-list=<librariesList>
+                            Specifies a file that contains a path to an archive or directory to add
+                              to the classpath on each line.
+      --max-queue-depth=<maxQueueDepth>
+                            When both input and output support ordering (archives), the transformer
+                              will try to maintain that order. To still process items in parallel,
+                              a queue is used. Larger queue depths lead to higher memory usage.
+      --out-format=<outputFormat>
+                            Specify the format of OUTPUT explicitly. Allows the same options as
+                              --in-format.
+  -V, --version             Print version information and exit.
+Plugin - parchment
+      --enable-parchment    Enable parchment
+      --parchment-javadoc
+      --parchment-mappings=<mappingsPath>
 ```
 
 ## Licenses
