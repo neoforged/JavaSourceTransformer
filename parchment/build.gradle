@@ -5,5 +5,5 @@ plugins {
 dependencies {
     implementation project(":api")
     implementation 'org.parchmentmc.feather:io-gson:1.1.0'
-    implementation 'net.fabricmc:mapping-io:0.5.1'
+    implementation 'net.neoforged:srgutils:1.0.0'
 }

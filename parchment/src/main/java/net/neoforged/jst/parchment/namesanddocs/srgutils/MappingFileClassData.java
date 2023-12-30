@@ -1,16 +1,16 @@
-package net.neoforged.jst.parchment.namesanddocs.mappingio;
+package net.neoforged.jst.parchment.namesanddocs.srgutils;
 
-import net.fabricmc.mappingio.tree.MappingTree;
 import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsForClass;
 import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsForField;
 import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsForMethod;
+import net.neoforged.srgutils.IMappingFile;
 
 import java.util.List;
 
-class TreeClassData implements NamesAndDocsForClass {
-    private final MappingTree.ClassMapping classData;
+class MappingFileClassData implements NamesAndDocsForClass {
+    private final IMappingFile.IClass classData;
 
-    public TreeClassData(MappingTree.ClassMapping classData) {
+    public MappingFileClassData(IMappingFile.IClass classData) {
 
         this.classData = classData;
     }
@@ -27,7 +27,7 @@ class TreeClassData implements NamesAndDocsForClass {
 
     @Override
     public NamesAndDocsForMethod getMethod(String name, String methodSignature) {
-        var methodData = classData.getMethod(name, methodSignature, 0);
-        return methodData != null ? new TreeMethodData(methodData) : null;
+        var methodData = classData.getMethod(name, methodSignature);
+        return methodData != null ? new MappingFileMethodData(methodData) : null;
     }
 }

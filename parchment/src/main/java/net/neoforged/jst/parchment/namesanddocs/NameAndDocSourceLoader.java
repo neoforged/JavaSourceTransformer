@@ -1,10 +1,8 @@
 package net.neoforged.jst.parchment.namesanddocs;
 
-import net.fabricmc.mappingio.MappingReader;
-import net.fabricmc.mappingio.format.MappingFormat;
-import net.fabricmc.mappingio.tree.MemoryMappingTree;
-import net.neoforged.jst.parchment.namesanddocs.mappingio.TreeData;
+import net.neoforged.jst.parchment.namesanddocs.srgutils.MappingFileDatabase;
 import net.neoforged.jst.parchment.namesanddocs.parchment.ParchmentDatabase;
+import net.neoforged.srgutils.INamedMappingFile;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -26,12 +24,7 @@ public final class NameAndDocSourceLoader {
         return switch (format) {
             case PARCHMENT_ZIP -> ParchmentDatabase.loadZip(path);
             case PARCHMENT_JSON -> ParchmentDatabase.loadJson(path);
-            case TSRG2 -> {
-                var tree = new MemoryMappingTree(true);
-                MappingReader.read(path, MappingFormat.TSRG_2_FILE, tree);
-
-                yield new TreeData(tree);
-            }
+            case TSRG2 -> MappingFileDatabase.load(path);
         };
     }
 
@@ -48,5 +41,3 @@ public final class NameAndDocSourceLoader {
     }
 
 }
-
-

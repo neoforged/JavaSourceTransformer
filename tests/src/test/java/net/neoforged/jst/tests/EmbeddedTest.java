@@ -186,27 +186,32 @@ public class EmbeddedTest {
 
     @Test
     void testInnerAndLocalClasses() throws Exception {
-        runTest("nested");
+        runTest("nested", "parchment.json");
     }
 
     @Test
     void testExternalReferences() throws Exception {
-        runTest("external_refs");
+        runTest("external_refs", "parchment.json");
     }
 
     @Test
     void testParamIndices() throws Exception {
-        runTest("param_indices");
+        runTest("param_indices", "parchment.json");
     }
 
     @Test
     void testJavadoc() throws Exception {
-        runTest("javadoc");
+        runTest("javadoc", "parchment.json");
     }
 
-    protected final void runTest(String testDirName) throws Exception {
+    @Test
+    void testTsrgMappings() throws Exception {
+        runTest("tsrg_file", "merged.tsrg");
+    }
+
+    protected final void runTest(String testDirName, String mappingsFilename) throws Exception {
         var testDir = testDataRoot.resolve(testDirName);
-        var parchmentFile = testDir.resolve("parchment.json");
+        var mappingsFile = testDir.resolve(mappingsFilename);
         var sourceDir = testDir.resolve("source");
         var expectedDir = testDir.resolve("expected");
 
@@ -227,7 +232,7 @@ public class EmbeddedTest {
                 librariesFile.toString(),
                 "--enable-parchment",
                 "--parchment-mappings",
-                parchmentFile.toString(),
+                mappingsFile.toString(),
                 inputFile.toString(),
                 outputFile.toString()
         );

@@ -1,16 +1,16 @@
-package net.neoforged.jst.parchment.namesanddocs.mappingio;
+package net.neoforged.jst.parchment.namesanddocs.srgutils;
 
-import net.fabricmc.mappingio.tree.MappingTree;
 import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsForMethod;
 import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsForParameter;
+import net.neoforged.srgutils.IMappingFile;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class TreeMethodData implements NamesAndDocsForMethod {
-    private final MappingTree.MethodMapping methodData;
+public class MappingFileMethodData implements NamesAndDocsForMethod {
+    private final IMappingFile.IMethod methodData;
 
-    public TreeMethodData(MappingTree.MethodMapping methodData) {
+    public MappingFileMethodData(IMappingFile.IMethod methodData) {
         this.methodData = methodData;
     }
 
@@ -21,14 +21,14 @@ public class TreeMethodData implements NamesAndDocsForMethod {
 
     @Override
     public NamesAndDocsForParameter getParameter(int index) {
-        var paramData = methodData.getArg(0, index, null);
-        if (paramData == null || paramData.getName(0) == null) {
+        var paramData = methodData.getParameter(index);
+        if (paramData == null || paramData.getMapped() == null) {
             return null;
         }
         return new NamesAndDocsForParameter() {
             @Override
             public @Nullable String getName() {
-                return paramData.getName(0);
+                return paramData.getOriginal();
             }
 
             @Override
