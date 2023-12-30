@@ -6,4 +6,11 @@ dependencies {
     implementation project(":api")
     implementation 'org.parchmentmc.feather:io-gson:1.1.0'
     implementation 'net.neoforged:srgutils:1.0.0'
+
+    testImplementation platform("org.junit:junit-bom:$junit_version")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
 }
