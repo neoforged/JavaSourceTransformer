@@ -137,4 +137,9 @@ public final class PsiHelper {
             return -1;
         }
     }
+
+    public static boolean isRecordConstructor(PsiMethod psiMethod) {
+        var containingClass = psiMethod.getContainingClass();
+        return containingClass != null && containingClass.isRecord() && psiMethod.isConstructor();
+    }
 }
