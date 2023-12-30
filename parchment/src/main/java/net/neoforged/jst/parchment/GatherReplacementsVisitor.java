@@ -93,8 +93,9 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     var jvmIndex = PsiHelper.getBinaryIndex(psiParameter, i);
 
                     var paramData = methodData.getParameter(jvmIndex);
-                    // Optionally replace the parameter name
-                    if (paramData != null && paramData.getName() != null) {
+                    // Optionally replace the parameter name, but skip record constructors, since those could have
+                    // implications for the field names.
+                    if (paramData != null && paramData.getName() != null && !PsiHelper.isRecordConstructor(psiMethod)) {
                         // Replace parameters within the method body
                         activeParameters.put(psiParameter, paramData);
 
