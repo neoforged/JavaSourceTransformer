@@ -9,7 +9,10 @@ import net.neoforged.jst.api.FileSource;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import java.util.zip.ZipFile;
 
 class ArchiveFileSource implements FileSource {
@@ -28,7 +31,13 @@ class ArchiveFileSource implements FileSource {
 
     @Override
     public Stream<FileEntry> streamEntries() {
-        return zipFile.stream().map(ze -> FileEntries.ofZipEntry(zipFile, ze));
+        var spliterator = Spliterators.spliterator(
+                zipFile.entries().asIterator(),
+                zipFile.size(),
+                Spliterator.IMMUTABLE | Spliterator.ORDERED
+        );
+        return StreamSupport.stream(spliterator, false)
+                .map(ze -> FileEntries.ofZipEntry(zipFile, ze));
     }
 
     @Override
