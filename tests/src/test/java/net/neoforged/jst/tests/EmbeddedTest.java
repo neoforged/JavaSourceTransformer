@@ -228,6 +228,7 @@ public class EmbeddedTest {
         Files.write(librariesFile, List.of("-e=" + junitJarPath));
 
         runTool(
+                "--max-queue-depth=1",
                 "--libraries-list",
                 librariesFile.toString(),
                 "--enable-parchment",

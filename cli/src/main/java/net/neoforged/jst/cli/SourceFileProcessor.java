@@ -45,7 +45,7 @@ class SourceFileProcessor implements AutoCloseable {
             transformer.beforeRun(context);
         }
 
-        if (sink.isOrdered()) {
+        if (source.isOrdered() && sink.isOrdered()) {
             try (var stream = source.streamEntries()) {
                 stream.forEach(entry -> {
                     try {
@@ -82,7 +82,8 @@ class SourceFileProcessor implements AutoCloseable {
         try (var in = entry.openInputStream()) {
             byte[] content = in.readAllBytes();
             var lastModified = entry.lastModified();
-            if (entry.hasExtension("java")) {
+
+            if (!transformers.isEmpty() && entry.hasExtension("java")) {
                 var orgContent = content;
                 content = transformSource(sourceRoot, entry.relativePath(), transformers, content);
                 if (orgContent != content) {
