@@ -13,7 +13,7 @@ jar {
     }
 }
 
-rootProject.gradleutils.setupSigning(project: project, signAllPublications: true)
+gradleutils.setupSigning(project: project, signAllPublications: true)
 
 dependencies {
     implementation project(":api")
@@ -51,5 +51,8 @@ publishing {
 
             project.shadow.component(bundle)
         }
+    }
+    repositories {
+        maven gradleutils.publishingMaven
     }
 }
