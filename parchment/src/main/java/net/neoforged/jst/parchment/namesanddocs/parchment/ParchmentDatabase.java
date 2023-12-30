@@ -16,6 +16,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class ParchmentDatabase implements NamesAndDocsDatabase {
@@ -38,6 +39,10 @@ public class ParchmentDatabase implements NamesAndDocsDatabase {
     public static ParchmentDatabase loadZip(Path parchmentFile) throws IOException {
         try (var zf = new ZipFile(parchmentFile.toFile())) {
             var parchmentJsonEntry = zf.getEntry("parchment.json");
+            if (parchmentJsonEntry == null) {
+                parchmentJsonEntry = findFallbackEntryJson(parchmentFile, zf);
+            }
+
             if (parchmentJsonEntry == null || parchmentJsonEntry.isDirectory()) {
                 throw new FileNotFoundException("Could not locate parchment.json at the root of ZIP-File " + parchmentFile);
             }
@@ -46,6 +51,23 @@ public class ParchmentDatabase implements NamesAndDocsDatabase {
                 return loadJson(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
             }
         }
+    }
+
+    private static ZipEntry findFallbackEntryJson(Path parchmentFile, ZipFile zf) throws FileNotFoundException {
+        // Fall back to any JSON file in the root if there is only one.
+        var entries = zf.entries().asIterator();
+        ZipEntry parchmentJsonEntry = null;
+        while (entries.hasNext()) {
+            var entry = entries.next();
+            if (!entry.getName().contains("/") && entry.getName().endsWith(".json")) {
+                if (parchmentJsonEntry != null) {
+                    throw new FileNotFoundException("Could not locate parchment.json at the root of ZIP-File " + parchmentFile
+                            + " and there are multiple other JSON files present in the root.");
+                }
+                parchmentJsonEntry = entry;
+            }
+        }
+        return parchmentJsonEntry;
     }
 
     public static ParchmentDatabase loadJson(Path parchmentFile) throws IOException {

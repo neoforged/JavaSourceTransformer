@@ -12,12 +12,6 @@ project.version = gradleutils.version
 
 println "Version ${project.version}"
 
-allprojects {
-    java.toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-}
-
 subprojects {
     group = rootProject.group
     version = rootProject.version
