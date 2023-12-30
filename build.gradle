@@ -1,10 +1,22 @@
 plugins {
+    id 'java'
     id 'maven-publish'
     id 'net.neoforged.gradleutils'
 }
 
-group = "net.neoforged"
+group = "net.neoforged.jst"
+gradleutils.version {
+    branches.suffixBranch()
+}
 project.version = gradleutils.version
+
+println "Version ${project.version}"
+
+allprojects {
+    java.toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
 
 subprojects {
     group = rootProject.group
