@@ -21,4 +21,17 @@ allprojects {
 subprojects {
     group = rootProject.group
     version = rootProject.version
+
+    apply plugin : "java"
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    // ensure everything uses UTF-8 and not some random codepage chosen by gradle
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
 }
