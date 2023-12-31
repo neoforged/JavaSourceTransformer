@@ -1,10 +1,12 @@
 package net.neoforged.jst.api;
 
+import com.intellij.lang.jvm.types.JvmPrimitiveTypeKind;
 import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiLambdaExpression;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiParameter;
+import com.intellij.psi.PsiParameterListOwner;
+import com.intellij.psi.PsiPrimitiveType;
 import com.intellij.psi.PsiTypes;
 import com.intellij.psi.SyntaxTraverser;
 import com.intellij.psi.util.CachedValueProvider;
@@ -114,28 +116,43 @@ public final class PsiHelper {
         return false;
     }
 
-    public static int getBinaryIndex(PsiParameter psiParameter, int index) {
-        var declarationScope = psiParameter.getDeclarationScope();
-        if (declarationScope instanceof PsiMethod psiMethod) {
+    /**
+     * Gets the local variable table indices of the parameters for the given method
+     * or lambda expression
+     */
+    public static int[] getParameterLvtIndices(PsiParameterListOwner methodOrLambda) {
+
+        // Account for hidden parameters before the first actual parameter
+        int currentIndex = 0;
+        if (methodOrLambda instanceof PsiMethod psiMethod) {
             if (!psiMethod.hasModifierProperty(PsiModifier.STATIC)) {
-                index++; // this pointer
+                currentIndex++; // this pointer
             }
 
             // Try to account for hidden parameters only present in bytecode since the
             // mapping data refers to parameters using those indices
             if (isEnumConstructor(psiMethod)) {
-                index += 2;
+                currentIndex += 2;
             } else if (isNonStaticInnerClassConstructor(psiMethod)) {
-                index += 1;
+                currentIndex += 1;
             }
-
-            return index;
-        } else if (declarationScope instanceof PsiLambdaExpression psiLambda) {
-            // Naming lambdas doesn't really work
-            return index;
-        } else {
-            return -1;
         }
+
+        var parameters = methodOrLambda.getParameterList().getParameters();
+        var lvti = new int[parameters.length];
+        for (int i = 0; i < lvti.length; i++) {
+            lvti[i] = currentIndex++;
+            // double and long use 2 slots in the LVT
+            if (parameters[i].getType() instanceof PsiPrimitiveType primitiveType) {
+                var kind = primitiveType.getKind();
+                if (kind == JvmPrimitiveTypeKind.LONG || kind == JvmPrimitiveTypeKind.DOUBLE) {
+                    currentIndex++;
+                }
+            }
+        }
+
+        return lvti;
+
     }
 
     public static boolean isRecordConstructor(PsiMethod psiMethod) {

@@ -48,6 +48,28 @@
               "name": "mapped"
             }
           ]
+        },
+        {
+          "name": "staticMethodWithLongAndDouble",
+          "descriptor": "(IJDF)V",
+          "parameters": [
+            {
+              "index": 0,
+              "name": "mappedInt"
+            },
+            {
+              "index": 1,
+              "name": "mappedLong"
+            },
+            {
+              "index": 3,
+              "name": "mappedDouble"
+            },
+            {
+              "index": 5,
+              "name": "mappedFloat"
+            }
+          ]
         }
       ]
     },
