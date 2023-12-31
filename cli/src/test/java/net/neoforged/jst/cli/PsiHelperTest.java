@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class PsiHelperTest {
@@ -66,13 +67,12 @@ class PsiHelperTest {
         }
 
         @Test
-        void testMethodParameterIndex() {
-            var firstParam = ctor.getParameterList().getParameter(0);
-            int index = PsiHelper.getBinaryIndex(firstParam, 0);
-            // Binary parameters are:
+        void testMethodParameterIndices() {
+            // LVT of method should be:
             // 0) this
             // 1) first method parameter
-            assertEquals(1, index);
+            assertThat(PsiHelper.getParameterLvtIndices(ctor))
+                    .containsExactly(1);
         }
     }
 
@@ -95,12 +95,11 @@ class PsiHelperTest {
         }
 
         @Test
-        void testMethodParameterIndex() {
-            var firstParam = ctor.getParameterList().getParameter(0);
-            int index = PsiHelper.getBinaryIndex(firstParam, 0);
+        void testMethodParameterIndices() {
             // Binary parameters are:
             // 0) first method parameter
-            assertEquals(0, index);
+            assertThat(PsiHelper.getParameterLvtIndices(ctor))
+                    .containsExactly(0);
         }
     }
 
@@ -124,15 +123,14 @@ class PsiHelperTest {
         }
 
         @Test
-        void testMethodParameterIndex() {
-            var firstParam = ctor.getParameterList().getParameter(0);
-            int index = PsiHelper.getBinaryIndex(firstParam, 0);
+        void testMethodParameterIndices() {
             // Binary parameters are:
             // 0) this
             // 1) enum literal name
             // 2) enum literal ordinal
             // 3) first method parameter
-            assertEquals(3, index);
+            assertThat(PsiHelper.getParameterLvtIndices(ctor))
+                    .containsExactly(3);
         }
     }
 
@@ -157,14 +155,13 @@ class PsiHelperTest {
         }
 
         @Test
-        void testMethodParameterIndex() {
-            var firstParam = ctor.getParameterList().getParameter(0);
-            int index = PsiHelper.getBinaryIndex(firstParam, 0);
+        void testMethodParameterIndices() {
             // Binary parameters are:
             // 0) this
             // 1) outer class pointer
             // 2) first method parameter
-            assertEquals(2, index);
+            assertThat(PsiHelper.getParameterLvtIndices(ctor))
+                    .containsExactly(2);
         }
     }
 
@@ -189,14 +186,27 @@ class PsiHelperTest {
         }
 
         @Test
-        void testMethodParameterIndex() {
-            var firstParam = ctor.getParameterList().getParameter(0);
-            int index = PsiHelper.getBinaryIndex(firstParam, 0);
+        void testMethodParameterIndices() {
             // Binary parameters are:
             // 0) this
             // 1) first method parameter
-            assertEquals(1, index);
+            assertThat(PsiHelper.getParameterLvtIndices(ctor))
+                    .containsExactly(1);
         }
+    }
+
+    @Test
+    void testLvtIndicesForPrimitiveTypes() {
+        var m = parseSingleMethod("""
+                class Outer {
+                    static void m(byte p1, short p2, int p3, long p4, float p5, double p6, boolean p7) {
+                    }
+                }
+                """);
+
+        assertEquals("(BSIJFDZ)V", PsiHelper.getBinaryMethodSignature(m));
+        assertThat(PsiHelper.getParameterLvtIndices(m))
+                .containsExactly(0, 1, 2, 3, 5, 6, 8);
     }
 
     private PsiMethod parseSingleMethod(@Language("JAVA") String javaCode) {

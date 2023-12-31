@@ -79,7 +79,8 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 Map<String, String> renamedParameters = new HashMap<>();
                 List<String> parameterOrder = new ArrayList<>();
 
-                PsiParameter[] parameters = psiMethod.getParameterList().getParameters();
+                var parameters = psiMethod.getParameterList().getParameters();
+                var parametersLvtIndices = PsiHelper.getParameterLvtIndices(psiMethod);
                 boolean hadReplacements = false;
                 for (int i = 0; i < parameters.length; i++) {
                     var psiParameter = parameters[i];
@@ -90,7 +91,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
                     // Parchment stores parameter indices based on the index of the parameter in the actual compiled method
                     // to account for synthetic parameter not found in the source-code, we must adjust the index accordingly.
-                    var jvmIndex = PsiHelper.getBinaryIndex(psiParameter, i);
+                    var jvmIndex = parametersLvtIndices[i];
 
                     var paramData = methodData.getParameter(jvmIndex);
                     // Optionally replace the parameter name, but skip record constructors, since those could have
