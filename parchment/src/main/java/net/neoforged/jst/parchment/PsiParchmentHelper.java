@@ -52,8 +52,10 @@ public class PsiParchmentHelper {
             var classData = getClassData(namesAndDocs, psiMethod.getContainingClass());
             if (classData != null) {
                 var methodName = PsiHelper.getBinaryMethodName(psiMethod);
-                var methodSignature = PsiHelper.getBinaryMethodSignature(psiMethod);
-                methodData = Optional.ofNullable(classData.getMethod(methodName, methodSignature));
+                var signatures = PsiHelper.getOverloadedSignatures(psiMethod);
+                while (signatures.hasNext() && methodData.isEmpty()) {
+                    methodData = Optional.ofNullable(classData.getMethod(methodName, signatures.next()));
+                }
             }
 
             psiMethod.putUserData(METHOD_DATA_KEY, methodData);

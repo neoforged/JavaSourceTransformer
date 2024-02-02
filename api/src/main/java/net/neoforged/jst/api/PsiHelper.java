@@ -16,12 +16,67 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.containers.ObjectIntHashMap;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 public final class PsiHelper {
     public static String getBinaryMethodName(PsiMethod psiMethod) {
         return psiMethod.isConstructor() ? "<init>" : psiMethod.getName();
+    }
+
+    public static Iterator<String> getOverloadedSignatures(PsiMethod method) {
+        final List<String> parameters = new ArrayList<>();
+        final var returnType = Optional.ofNullable(method.getReturnType()).orElse(PsiTypes.voidType());
+        String returnTypeRepresentation = ClassUtil.getBinaryPresentation(returnType);
+        if (returnTypeRepresentation.isEmpty()) {
+            System.err.println("Failed to create binary representation for type " + returnType.getCanonicalText());
+            returnTypeRepresentation = "ERROR";
+        }
+        final String retRep = returnTypeRepresentation;
+
+        // Add implicit constructor parameters
+        // Private enumeration constructors have two hidden parameters (enun name+ordinal)
+        if (isEnumConstructor(method)) {
+            parameters.add("Ljava/lang/String;I");
+        }
+        // Non-Static inner class constructors have the enclosing class as their first argument
+        else if (isNonStaticInnerClassConstructor(method)) {
+            var parent = Objects.requireNonNull(Objects.requireNonNull(method.getContainingClass()).getContainingClass());
+            final StringBuilder par = new StringBuilder();
+            par.append("L");
+            getBinaryClassName(parent, par);
+            par.append(";");
+            parameters.add(par.toString());
+        }
+
+        for (PsiParameter param : method.getParameterList().getParameters()) {
+            var binaryPresentation = ClassUtil.getBinaryPresentation(param.getType());
+            if (binaryPresentation.isEmpty()) {
+                System.err.println("Failed to create binary representation for type " + param.getType().getCanonicalText());
+                binaryPresentation = "ERROR";
+            }
+            parameters.add(binaryPresentation);
+        }
+
+        return new Iterator<>() {
+            @Override
+            public boolean hasNext() {
+                return !parameters.isEmpty();
+            }
+
+            @Override
+            public String next() {
+                StringBuilder signature = new StringBuilder();
+                signature.append("(");
+                parameters.forEach(signature::append);
+                signature.append(")").append(retRep);
+                parameters.remove(parameters.size() - 1);
+                return signature.toString();
+            }
+        };
     }
 
     public static String getBinaryMethodSignature(PsiMethod method) {

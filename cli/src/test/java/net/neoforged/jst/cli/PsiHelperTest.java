@@ -196,6 +196,20 @@ class PsiHelperTest {
     }
 
     @Test
+    void testPossibleSignatures() {
+        var m = parseSingleMethod("""
+                class Outer {
+                    static boolean m(int p1, boolean p2, long p3) {
+                        return false;
+                    }
+                }
+                """);
+        assertThat(PsiHelper.getOverloadedSignatures(m))
+                .toIterable()
+                .containsExactly("(IZJ)Z", "(IZ)Z", "(I)Z");
+    }
+
+    @Test
     void testLvtIndicesForPrimitiveTypes() {
         var m = parseSingleMethod("""
                 class Outer {
