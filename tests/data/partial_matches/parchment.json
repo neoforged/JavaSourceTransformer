@@ -1,0 +1,30 @@
+{
+  "version": "1.1.0",
+  "classes": [
+    {
+      "name": "TestClass",
+      "methods": [
+        {
+          "name": "m",
+          "descriptor": "(Ljava/lang/String;)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "wrong"
+            }
+          ]
+        },
+        {
+          "name": "m",
+          "descriptor": "(Ljava/lang/String;Ljava/util/List;)V",
+          "parameters": [
+            {
+              "index": 1,
+              "name": "a"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
