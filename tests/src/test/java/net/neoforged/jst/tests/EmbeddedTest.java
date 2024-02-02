@@ -195,6 +195,11 @@ public class EmbeddedTest {
     }
 
     @Test
+    void testPartialMatches() throws Exception {
+        runTest("partial_matches", "parchment.json");
+    }
+
+    @Test
     void testParamIndices() throws Exception {
         runTest("param_indices", "parchment.json");
     }
