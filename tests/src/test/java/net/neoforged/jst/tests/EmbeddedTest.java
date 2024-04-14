@@ -221,6 +221,21 @@ public class EmbeddedTest {
     @Nested
     class AccessTransformer {
         @Test
+        void testFields() throws Exception {
+            runATTest("fields");
+        }
+
+        @Test
+        void testMethods() throws Exception {
+            runATTest("methods");
+        }
+
+        @Test
+        void testClasses() throws Exception {
+            runATTest("classes");
+        }
+
+        @Test
         void testInnerClasses() throws Exception {
             runATTest("inner_classes");
         }
