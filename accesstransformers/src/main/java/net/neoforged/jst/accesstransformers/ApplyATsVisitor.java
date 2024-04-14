@@ -9,10 +9,12 @@ import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.util.ClassUtil;
-import net.neoforged.accesstransformer.api.AccessTransformer;
-import net.neoforged.accesstransformer.api.TargetType;
+import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
+import net.neoforged.accesstransformer.parser.Target;
+import net.neoforged.accesstransformer.parser.Transformation;
 import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -21,14 +23,14 @@ import java.util.Map;
 
 class ApplyATsVisitor extends PsiRecursiveElementVisitor {
     private static final List<String> ACCESS_MODIFIERS = List.of(PsiModifier.PUBLIC, PsiModifier.PRIVATE, PsiModifier.PROTECTED);
-    public static final EnumMap<AccessTransformer.Modifier, String> MODIFIER_TO_STRING = new EnumMap<>(
-            Map.of(AccessTransformer.Modifier.PRIVATE, PsiModifier.PRIVATE, AccessTransformer.Modifier.PUBLIC, PsiModifier.PUBLIC, AccessTransformer.Modifier.PROTECTED, PsiModifier.PROTECTED)
+    public static final EnumMap<Transformation.Modifier, String> MODIFIER_TO_STRING = new EnumMap<>(
+            Map.of(Transformation.Modifier.PRIVATE, PsiModifier.PRIVATE, Transformation.Modifier.PUBLIC, PsiModifier.PUBLIC, Transformation.Modifier.PROTECTED, PsiModifier.PROTECTED)
     );
 
-    private final Map<String, List<AccessTransformer>> ats;
+    private final AccessTransformerFiles ats;
     private final Replacements replacements;
 
-    public ApplyATsVisitor(Map<String, List<AccessTransformer>> ats, Replacements replacements) {
+    public ApplyATsVisitor(AccessTransformerFiles ats, Replacements replacements) {
         this.ats = ats;
         this.replacements = replacements;
     }
@@ -38,54 +40,52 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         if (element instanceof PsiClass psiClass) {
             if (psiClass.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(psiClass);
-                ats.getOrDefault(className, List.of())
-                        .forEach(accessTransformer -> {
-                            if (accessTransformer.getTarget().getType() == TargetType.CLASS && accessTransformer.getTarget().targetName().equals(className)) {
-                                apply(accessTransformer, psiClass.getModifierList());
-                            }
-                        });
+                if (!ats.containsClassTarget(className)) return; // Skip this class and all its children
+
+                apply(ats.getAccessTransformers().get(new Target.ClassTarget(className)), psiClass.getModifierList());
+                var fieldWildcard = ats.getAccessTransformers().get(new Target.WildcardFieldTarget(className));
+                if (fieldWildcard != null) {
+                    for (PsiField field : psiClass.getFields()) {
+                        apply(fieldWildcard, field.getModifierList());
+                    }
+                }
+
+                var methodWildcard = ats.getAccessTransformers().get(new Target.WildcardMethodTarget(className));
+                if (methodWildcard != null) {
+                    for (PsiMethod method : psiClass.getMethods()) {
+                        apply(methodWildcard, method.getModifierList());
+                    }
+                }
             }
         } else if (element instanceof PsiField field) {
             final var cls = field.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                ats.getOrDefault(className, List.of())
-                        .forEach(accessTransformer -> {
-                            if ((accessTransformer.getTarget().getType() == TargetType.FIELD && accessTransformer.getTarget().targetName().equals(field.getName())) || accessTransformer.getTarget().getWildcardTarget() == TargetType.FIELD) {
-                                apply(accessTransformer, field.getModifierList());
-                            }
-                        });
+                apply(ats.getAccessTransformers().get(new Target.FieldTarget(className, field.getName())), field.getModifierList());
             }
         } else if (element instanceof PsiMethod method) {
             final var cls = method.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                ats.getOrDefault(className, List.of())
-                        .forEach(accessTransformer -> {
-                            if ((accessTransformer.getTarget().getType() == TargetType.METHOD && accessTransformer.getTarget().targetName().equals(
-                                    method.getName() + ClassUtil.getAsmMethodSignature(method)
-                            )) || accessTransformer.getTarget().getWildcardTarget() == TargetType.METHOD) {
-                                apply(accessTransformer, method.getModifierList());
-                            }
-                        });
+                apply(ats.getAccessTransformers().get(new Target.MethodTarget(className, method.getName(), ClassUtil.getAsmMethodSignature(method))), method.getModifierList());
             }
         }
 
         element.acceptChildren(this);
     }
 
-    private void apply(AccessTransformer at, PsiModifierList modifiers) {
-        if (!at.isValid()) return;
+    private void apply(@Nullable Transformation at, PsiModifierList modifiers) {
+        if (at == null || !at.isValid()) return;
 
-        var targetAcc = at.getTargetAccess();
-        if (targetAcc == AccessTransformer.Modifier.DEFAULT || !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
+        var targetAcc = at.modifier();
+        if (targetAcc == Transformation.Modifier.DEFAULT || !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
             final var existingModifier = Arrays.stream(modifiers.getChildren())
                     .filter(el -> el instanceof PsiKeyword)
                     .map(el -> (PsiKeyword) el)
                     .filter(kw -> ACCESS_MODIFIERS.contains(kw.getText()))
                     .findFirst();
 
-            if (targetAcc == AccessTransformer.Modifier.DEFAULT) {
+            if (targetAcc == Transformation.Modifier.DEFAULT) {
                 existingModifier.ifPresent(replacements::remove);
             } else {
                 if (existingModifier.isPresent()) {
@@ -101,8 +101,8 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
             }
         }
 
-        var finalState = at.getTargetFinalState();
-        if (finalState == AccessTransformer.FinalState.REMOVEFINAL && modifiers.hasModifierProperty(PsiModifier.FINAL)) {
+        var finalState = at.finalState();
+        if (finalState == Transformation.FinalState.REMOVEFINAL && modifiers.hasModifierProperty(PsiModifier.FINAL)) {
             Arrays.stream(modifiers.getChildren())
                     .filter(el -> el instanceof PsiKeyword)
                     .map(el -> (PsiKeyword) el)
