@@ -218,6 +218,19 @@ public class EmbeddedTest {
         }
     }
 
+    @Nested
+    class AccessTransformer {
+        @Test
+        void testInnerClasses() throws Exception {
+            runATTest("inner_classes");
+        }
+
+        @Test
+        void testWildcard() throws Exception {
+            runATTest("wildcard");
+        }
+    }
+
     protected final void runATTest(String testDirName) throws Exception {
         testDirName = "accesstransformer/" + testDirName;
         runTest(testDirName, "--enable-accesstransformers", "--access-transformer", testDataRoot.resolve(testDirName).resolve("accesstransformer.cfg").toString());

@@ -78,20 +78,25 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         if (!at.isValid()) return;
 
         var targetAcc = at.getTargetAccess();
-        if (targetAcc != AccessTransformer.Modifier.DEFAULT && !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
+        if (targetAcc == AccessTransformer.Modifier.DEFAULT || !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
             final var existingModifier = Arrays.stream(modifiers.getChildren())
                     .filter(el -> el instanceof PsiKeyword)
                     .map(el -> (PsiKeyword) el)
                     .filter(kw -> ACCESS_MODIFIERS.contains(kw.getText()))
                     .findFirst();
-            if (existingModifier.isPresent()) {
-                replacements.replace(existingModifier.get(), MODIFIER_TO_STRING.get(targetAcc));
+
+            if (targetAcc == AccessTransformer.Modifier.DEFAULT) {
+                existingModifier.ifPresent(replacements::remove);
             } else {
-                if (modifiers.getChildren().length == 0) {
-                    // Empty modifiers are blank so we basically replace them
-                    replacements.insertAfter(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                if (existingModifier.isPresent()) {
+                    replacements.replace(existingModifier.get(), MODIFIER_TO_STRING.get(targetAcc));
                 } else {
-                    replacements.insertBefore(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                    if (modifiers.getChildren().length == 0) {
+                        // Empty modifiers are blank so we basically replace them
+                        replacements.insertAfter(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                    } else {
+                        replacements.insertBefore(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                    }
                 }
             }
         }
