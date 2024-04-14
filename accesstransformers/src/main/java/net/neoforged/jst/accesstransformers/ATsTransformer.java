@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class ATsTransformer implements SourceTransformer {
 
-    @CommandLine.Option(names = "--access-transformer-files", required = true)
+    @CommandLine.Option(names = "--access-transformer", required = true)
     public List<Path> atFiles;
 
     private Map<String, List<AccessTransformer>> targets;

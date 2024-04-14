@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -106,7 +107,7 @@ public class EmbeddedTest {
     class FolderSource {
         @Test
         void singleFileOutput() {
-            var sourceFolder = testDataRoot.resolve("nested/source");
+            var sourceFolder = testDataRoot.resolve("parchment/nested/source");
             var outputFile = tempDir.resolve("Output.java");
 
             // We do not have a unified exception here
@@ -118,7 +119,7 @@ public class EmbeddedTest {
 
         @Test
         void folderOutput() throws Exception {
-            var sourceFolder = testDataRoot.resolve("nested/source");
+            var sourceFolder = testDataRoot.resolve("parchment/nested/source");
 
             runTool(sourceFolder.toString(), tempDir.toString());
 
@@ -127,7 +128,7 @@ public class EmbeddedTest {
 
         @Test
         void archiveOutput() throws Exception {
-            var sourceFolder = testDataRoot.resolve("nested/source");
+            var sourceFolder = testDataRoot.resolve("parchment/nested/source");
             var outputFile = tempDir.resolve("archive.zip");
 
             runTool(sourceFolder.toString(), "--out-format", "archive", outputFile.toString());
@@ -146,7 +147,7 @@ public class EmbeddedTest {
         @BeforeEach
         void setUp() throws IOException {
             inputFile = tempDir.resolve("input.zip");
-            var sourceFolder = testDataRoot.resolve("nested/source");
+            var sourceFolder = testDataRoot.resolve("parchment/nested/source");
             zipDirectory(sourceFolder, inputFile, p -> true);
             expectedContent = truncateTimes(loadDirToMap(sourceFolder));
         }
@@ -174,7 +175,7 @@ public class EmbeddedTest {
 
         @Test
         void archiveOutput() throws Exception {
-            var sourceFolder = testDataRoot.resolve("nested/source");
+            var sourceFolder = testDataRoot.resolve("parchment/nested/source");
             var outputFile = tempDir.resolve("archive.zip");
 
             runTool(sourceFolder.toString(), "--out-format", "archive", outputFile.toString());
@@ -184,46 +185,57 @@ public class EmbeddedTest {
         }
     }
 
-    @Test
-    void testInnerAndLocalClasses() throws Exception {
-        runTest("nested", "parchment.json");
+    @Nested
+    class Parchment {
+        @Test
+        void testInnerAndLocalClasses() throws Exception {
+            runParchmentTest("nested", "parchment.json");
+        }
+
+        @Test
+        void testExternalReferences() throws Exception {
+            runParchmentTest("external_refs", "parchment.json");
+        }
+
+        @Test
+        void testPartialMatches() throws Exception {
+            runParchmentTest("partial_matches", "parchment.json");
+        }
+
+        @Test
+        void testParamIndices() throws Exception {
+            runParchmentTest("param_indices", "parchment.json");
+        }
+
+        @Test
+        void testJavadoc() throws Exception {
+            runParchmentTest("javadoc", "parchment.json");
+        }
+
+        @Test
+        void testTsrgMappings() throws Exception {
+            runParchmentTest("tsrg_file", "merged.tsrg");
+        }
     }
 
-    @Test
-    void testExternalReferences() throws Exception {
-        runTest("external_refs", "parchment.json");
+    protected final void runATTest(String testDirName) throws Exception {
+        testDirName = "accesstransformer/" + testDirName;
+        runTest(testDirName, "--enable-accesstransformers", "--access-transformer", testDataRoot.resolve(testDirName).resolve("accesstransformer.cfg").toString());
     }
 
-    @Test
-    void testPartialMatches() throws Exception {
-        runTest("partial_matches", "parchment.json");
+    protected final void runParchmentTest(String testDirName, String mappingsFilename) throws Exception {
+        testDirName = "parchment/" + testDirName;
+        runTest(testDirName, "--enable-parchment", "--parchment-mappings", testDataRoot.resolve(testDirName).resolve(mappingsFilename).toString());
     }
 
-    @Test
-    void testParamIndices() throws Exception {
-        runTest("param_indices", "parchment.json");
-    }
-
-    @Test
-    void testJavadoc() throws Exception {
-        runTest("javadoc", "parchment.json");
-    }
-
-    @Test
-    void testTsrgMappings() throws Exception {
-        runTest("tsrg_file", "merged.tsrg");
-    }
-
-    protected final void runTest(String testDirName, String mappingsFilename) throws Exception {
+    protected final void runTest(String testDirName, String... args) throws Exception {
         var testDir = testDataRoot.resolve(testDirName);
-        var mappingsFile = testDir.resolve(mappingsFilename);
         var sourceDir = testDir.resolve("source");
         var expectedDir = testDir.resolve("expected");
 
         var inputFile = tempDir.resolve("input.jar");
-        zipDirectory(sourceDir, inputFile, path -> {
-            return Files.isDirectory(path) || path.getFileName().toString().endsWith(".java");
-        });
+        zipDirectory(sourceDir, inputFile, path ->
+                Files.isDirectory(path) || path.getFileName().toString().endsWith(".java"));
 
         var outputFile = tempDir.resolve("output.jar");
 
@@ -232,16 +244,14 @@ public class EmbeddedTest {
         var librariesFile = tempDir.resolve("libraries.txt");
         Files.write(librariesFile, List.of("-e=" + junitJarPath));
 
-        runTool(
+        final List<String> arguments = new ArrayList<>(Arrays.asList(
                 "--max-queue-depth=1",
                 "--libraries-list",
-                librariesFile.toString(),
-                "--enable-parchment",
-                "--parchment-mappings",
-                mappingsFile.toString(),
-                inputFile.toString(),
-                outputFile.toString()
-        );
+                librariesFile.toString()));
+        arguments.addAll(Arrays.asList(args));
+        arguments.add(inputFile.toString());
+        arguments.add(outputFile.toString());
+        runTool(arguments.toArray(String[]::new));
 
         try (var zipFile = new ZipFile(outputFile.toFile())) {
             var it = zipFile.entries().asIterator();
