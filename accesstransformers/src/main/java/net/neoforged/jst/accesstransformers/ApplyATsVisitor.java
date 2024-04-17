@@ -40,7 +40,9 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         if (element instanceof PsiClass psiClass) {
             if (psiClass.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(psiClass);
-                if (!ats.containsClassTarget(className)) return; // Skip this class and all its children
+                if (!ats.containsClassTarget(className)) {
+                    return; // Skip this class and all its children
+                }
 
                 apply(ats.getAccessTransformers().get(new Target.ClassTarget(className)), psiClass.getModifierList());
                 var fieldWildcard = ats.getAccessTransformers().get(new Target.WildcardFieldTarget(className));

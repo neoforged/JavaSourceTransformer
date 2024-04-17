@@ -27,16 +27,6 @@ dependencyResolutionManagement {
         maven {
             url "https://maven.neoforged.net/releases/"
         }
-        maven {
-            name 'Maven for PR #6' // https://github.com/neoforged/AccessTransformers/pull/6
-            url 'https://prmaven.neoforged.net/AccessTransformers/pr6'
-            content {
-                includeModule('net.neoforged', 'accesstransformers')
-                includeModule('net.neoforged.accesstransformers', 'at-parser')
-                includeModule('net.neoforged.accesstransformers', 'at-cli')
-                includeModule('net.neoforged.accesstransformers', 'at-modlauncher')
-            }
-        }
     }
 }
 

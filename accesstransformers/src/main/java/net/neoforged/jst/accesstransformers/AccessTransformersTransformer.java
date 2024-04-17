@@ -12,7 +12,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.List;
 
-public class ATsTransformer implements SourceTransformer {
+public class AccessTransformersTransformer implements SourceTransformer {
 
     @CommandLine.Option(names = "--access-transformer", required = true)
     public List<Path> atFiles;
