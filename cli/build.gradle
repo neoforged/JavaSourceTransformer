@@ -19,6 +19,7 @@ dependencies {
     implementation project(":api")
     implementation "info.picocli:picocli:$picocli_version"
     implementation project(":parchment")
+    implementation project(":accesstransformers")
 
     testImplementation platform("org.junit:junit-bom:$junit_version")
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -27,6 +28,10 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+shadowJar {
+    mergeServiceFiles()
 }
 
 assemble.configure {

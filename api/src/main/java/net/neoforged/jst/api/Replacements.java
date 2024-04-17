@@ -17,6 +17,18 @@ public final class Replacements {
         add(new Replacement(element.getTextRange(), newText));
     }
 
+    public void remove(PsiElement element) {
+        final int pos = element.getTextRange().getEndOffset();
+        if (element.getContainingFile().getText().charAt(pos) == ' ') {
+            add(new Replacement(new TextRange(
+                    element.getTextRange().getStartOffset(),
+                    pos + 1
+            ), ""));
+        } else {
+            replace(element, "");
+        }
+    }
+
     public void insertBefore(PsiElement element, String newText) {
         var startOffset = element.getTextRange().getStartOffset();
         add(new Replacement(new TextRange(
