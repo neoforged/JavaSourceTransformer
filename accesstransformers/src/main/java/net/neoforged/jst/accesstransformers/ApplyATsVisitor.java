@@ -12,6 +12,7 @@ import com.intellij.psi.util.ClassUtil;
 import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
 import net.neoforged.accesstransformer.parser.Target;
 import net.neoforged.accesstransformer.parser.Transformation;
+import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -41,7 +42,11 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
             if (psiClass.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(psiClass);
                 if (!ats.containsClassTarget(className)) {
-                    return; // Skip this class and all its children
+                    // Skip this class and its children, but not the inner classes
+                    for (PsiClass innerClass : psiClass.getInnerClasses()) {
+                        visitElement(innerClass);
+                    }
+                    return;
                 }
 
                 apply(ats.getAccessTransformers().get(new Target.ClassTarget(className)), psiClass.getModifierList());
@@ -69,7 +74,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
             final var cls = method.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                apply(ats.getAccessTransformers().get(new Target.MethodTarget(className, method.getName(), ClassUtil.getAsmMethodSignature(method))), method.getModifierList());
+                apply(ats.getAccessTransformers().get(new Target.MethodTarget(className, PsiHelper.getBinaryMethodName(method), PsiHelper.getBinaryMethodSignature(method))), method.getModifierList());
             }
         }
 

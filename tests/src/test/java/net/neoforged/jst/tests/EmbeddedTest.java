@@ -241,6 +241,11 @@ public class EmbeddedTest {
         }
 
         @Test
+        void testInnerMembers() throws Exception {
+            runATTest("inner_members");
+        }
+
+        @Test
         void testWildcard() throws Exception {
             runATTest("wildcard");
         }
