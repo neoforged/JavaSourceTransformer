@@ -249,6 +249,11 @@ public class EmbeddedTest {
         void testWildcard() throws Exception {
             runATTest("wildcard");
         }
+
+        @Test
+        void testInterfaces() throws Exception {
+            runATTest("interfaces");
+        }
     }
 
     protected final void runATTest(String testDirName) throws Exception {

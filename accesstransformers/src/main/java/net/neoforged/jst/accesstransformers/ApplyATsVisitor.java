@@ -7,6 +7,7 @@ import com.intellij.psi.PsiKeyword;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiModifierList;
+import com.intellij.psi.PsiModifierListOwner;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.util.ClassUtil;
 import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
@@ -21,6 +22,7 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 class ApplyATsVisitor extends PsiRecursiveElementVisitor {
     private static final List<String> ACCESS_MODIFIERS = List.of(PsiModifier.PUBLIC, PsiModifier.PRIVATE, PsiModifier.PROTECTED);
@@ -49,18 +51,18 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     return;
                 }
 
-                apply(ats.getAccessTransformers().get(new Target.ClassTarget(className)), psiClass.getModifierList());
+                apply(ats.getAccessTransformers().get(new Target.ClassTarget(className)), psiClass, psiClass);
                 var fieldWildcard = ats.getAccessTransformers().get(new Target.WildcardFieldTarget(className));
                 if (fieldWildcard != null) {
                     for (PsiField field : psiClass.getFields()) {
-                        apply(fieldWildcard, field.getModifierList());
+                        apply(fieldWildcard, field, psiClass);
                     }
                 }
 
                 var methodWildcard = ats.getAccessTransformers().get(new Target.WildcardMethodTarget(className));
                 if (methodWildcard != null) {
                     for (PsiMethod method : psiClass.getMethods()) {
-                        apply(methodWildcard, method.getModifierList());
+                        apply(methodWildcard, method, psiClass);
                     }
                 }
             }
@@ -68,44 +70,44 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
             final var cls = field.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                apply(ats.getAccessTransformers().get(new Target.FieldTarget(className, field.getName())), field.getModifierList());
+                apply(ats.getAccessTransformers().get(new Target.FieldTarget(className, field.getName())), field, cls);
             }
         } else if (element instanceof PsiMethod method) {
             final var cls = method.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                apply(ats.getAccessTransformers().get(new Target.MethodTarget(className, PsiHelper.getBinaryMethodName(method), PsiHelper.getBinaryMethodSignature(method))), method.getModifierList());
+                apply(ats.getAccessTransformers().get(new Target.MethodTarget(className, PsiHelper.getBinaryMethodName(method), PsiHelper.getBinaryMethodSignature(method))), method, cls);
             }
         }
 
         element.acceptChildren(this);
     }
 
-    private void apply(@Nullable Transformation at, PsiModifierList modifiers) {
+    // TODO - proper logging when an AT can't be applied
+    private void apply(@Nullable Transformation at, PsiModifierListOwner owner, PsiClass containingClass) {
         if (at == null || !at.isValid()) return;
+        var modifiers = owner.getModifierList();
 
         var targetAcc = at.modifier();
-        if (targetAcc == Transformation.Modifier.DEFAULT || !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
-            final var existingModifier = Arrays.stream(modifiers.getChildren())
-                    .filter(el -> el instanceof PsiKeyword)
-                    .map(el -> (PsiKeyword) el)
-                    .filter(kw -> ACCESS_MODIFIERS.contains(kw.getText()))
-                    .findFirst();
 
-            if (targetAcc == Transformation.Modifier.DEFAULT) {
-                existingModifier.ifPresent(replacements::remove);
+        // If we're modifying a non-static interface method we can only make it public, meaning it must be defined as default
+        if (containingClass.isInterface() && owner instanceof PsiMethod && !modifiers.hasModifierProperty(PsiModifier.STATIC)) {
+            if (targetAcc != Transformation.Modifier.PUBLIC) {
+                System.err.println("Non-static interface methods can only be made public");
             } else {
-                if (existingModifier.isPresent()) {
-                    replacements.replace(existingModifier.get(), MODIFIER_TO_STRING.get(targetAcc));
-                } else {
-                    if (modifiers.getChildren().length == 0) {
-                        // Empty modifiers are blank so we basically replace them
-                        replacements.insertAfter(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
-                    } else {
-                        replacements.insertBefore(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                for (var kw : modifiers.getChildren()) {
+                    if (kw instanceof PsiKeyword && kw.getText().equals(PsiKeyword.PRIVATE)) { // Strip private, replace it with default
+                        replacements.replace(kw, PsiModifier.DEFAULT);
+                        break;
                     }
                 }
             }
+        } else if (targetAcc == Transformation.Modifier.DEFAULT || !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
+            modify(targetAcc, modifiers, Arrays.stream(modifiers.getChildren())
+                    .filter(el -> el instanceof PsiKeyword)
+                    .map(el -> (PsiKeyword) el)
+                    .filter(kw -> ACCESS_MODIFIERS.contains(kw.getText()))
+                    .findFirst());
         }
 
         var finalState = at.finalState();
@@ -116,6 +118,23 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     .filter(kw -> kw.getText().equals(PsiModifier.FINAL))
                     .findFirst()
                     .ifPresent(replacements::remove);
+        }
+    }
+
+    private void modify(Transformation.Modifier targetAcc, PsiModifierList modifiers, Optional<PsiKeyword> existingModifier) {
+        if (targetAcc == Transformation.Modifier.DEFAULT) {
+            existingModifier.ifPresent(replacements::remove);
+        } else {
+            if (existingModifier.isPresent()) {
+                replacements.replace(existingModifier.get(), MODIFIER_TO_STRING.get(targetAcc));
+            } else {
+                if (modifiers.getChildren().length == 0) {
+                    // Empty modifiers are blank so we basically replace them
+                    replacements.insertAfter(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                } else {
+                    replacements.insertBefore(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                }
+            }
         }
     }
 }
