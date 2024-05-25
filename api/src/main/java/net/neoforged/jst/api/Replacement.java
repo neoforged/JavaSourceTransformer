@@ -7,5 +7,7 @@ import java.util.Comparator;
 
 public record Replacement(TextRange range, String newText) {
 
-    public static final Comparator<Replacement> COMPARATOR = Comparator.comparingInt(replacement -> replacement.range.getStartOffset());
+    public static final Comparator<Replacement> COMPARATOR = Comparator
+            .<Replacement>comparingInt(replacement -> replacement.range.getStartOffset())
+            .thenComparingInt(replacement -> replacement.range.getEndOffset());
 }
