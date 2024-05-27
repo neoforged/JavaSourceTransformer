@@ -254,6 +254,11 @@ public class EmbeddedTest {
         void testInterfaces() throws Exception {
             runATTest("interfaces");
         }
+
+        @Test
+        void testNoModifiers() throws Exception {
+            runATTest("no_modifiers");
+        }
     }
 
     protected final void runATTest(String testDirName) throws Exception {

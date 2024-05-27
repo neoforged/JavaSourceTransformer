@@ -20,12 +20,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 class ApplyATsVisitor extends PsiRecursiveElementVisitor {
-    private static final List<String> ACCESS_MODIFIERS = List.of(PsiModifier.PUBLIC, PsiModifier.PRIVATE, PsiModifier.PROTECTED);
+    private static final Set<String> ACCESS_MODIFIERS = Set.of(PsiModifier.PUBLIC, PsiModifier.PRIVATE, PsiModifier.PROTECTED);
+    private static final Set<String> MODIFIERS = Set.of(PsiModifier.MODIFIERS);
+
     public static final EnumMap<Transformation.Modifier, String> MODIFIER_TO_STRING = new EnumMap<>(
             Map.of(Transformation.Modifier.PRIVATE, PsiModifier.PRIVATE, Transformation.Modifier.PUBLIC, PsiModifier.PUBLIC, Transformation.Modifier.PROTECTED, PsiModifier.PROTECTED)
     );
@@ -132,9 +134,56 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     // Empty modifiers are blank so we basically replace them
                     replacements.insertAfter(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
                 } else {
-                    replacements.insertBefore(modifiers, MODIFIER_TO_STRING.get(targetAcc) + " ");
+                    var modifierStr = MODIFIER_TO_STRING.get(targetAcc);
+                    Arrays.stream(modifiers.getChildren())
+                            .filter(element -> element instanceof PsiKeyword && MODIFIERS.contains(element.getText()))
+                            .findFirst()
+                            // If there's other modifiers, insert just before the first
+                            .ifPresentOrElse(first -> {
+                                replacements.insertBefore(first, modifierStr + " ");
+                            }, () -> {
+                                // Otherwise insert before the declaration:
+                                // - element type (interface, enum, class, record) in the case of classes
+                                // - return type in the case of methods
+                                // - identifier in the case of constructors
+                                // - type in the case of fields
+                                if (modifiers.getParent() instanceof PsiClass cls) {
+                                    final String typeKeyword = detectKind(cls);
+
+                                    PsiElement next = modifiers;
+                                    while ((next = next.getNextSibling()) != null) {
+                                        if (next instanceof PsiKeyword kw && kw.getText().equals(typeKeyword)) {
+                                            replacements.insertBefore(kw, modifierStr + " ");
+                                            break;
+                                        }
+                                    }
+                                } else if (modifiers.getParent() instanceof PsiMethod method) {
+                                    if (method.getReturnTypeElement() == null) {
+                                        replacements.insertBefore(method.getNameIdentifier(), modifierStr + " ");
+                                    } else {
+                                        replacements.insertBefore(method.getReturnTypeElement(), modifierStr + " ");
+                                    }
+                                } else if (modifiers.getParent() instanceof PsiField field && field.getTypeElement() != null) {
+                                    replacements.insertBefore(field.getTypeElement(), modifierStr + " ");
+                                } else {
+                                    // If all fails, insert before the other modifiers and move on
+                                    replacements.insertBefore(modifiers, modifierStr + " ");
+                                }
+                            });
                 }
             }
+        }
+    }
+
+    private static String detectKind(PsiClass cls) {
+        if (cls.isRecord()) {
+            return "record";
+        } else if (cls.isInterface()) {
+            return "interface";
+        } else if (cls.isEnum()) {
+            return "enum";
+        } else {
+            return "class";
         }
     }
 }
