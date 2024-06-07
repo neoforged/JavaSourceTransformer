@@ -31,6 +31,9 @@ public class Main implements Callable<Integer> {
     @CommandLine.Option(names = "--libraries-list", description = "Specifies a file that contains a path to an archive or directory to add to the classpath on each line.")
     Path librariesList;
 
+    @CommandLine.Option(names = "--classpath", description = "Additional classpath entries to use. Is combined with --libraries-list.", converter = ClasspathConverter.class)
+    List<Path> addToClasspath = new ArrayList<>();
+
     @CommandLine.Option(names = "--max-queue-depth", description = "When both input and output support ordering (archives), the transformer will try to maintain that order. To still process items in parallel, a queue is used. Larger queue depths lead to higher memory usage.")
     int maxQueueDepth = 100;
 
@@ -62,6 +65,9 @@ public class Main implements Callable<Integer> {
 
             if (librariesList != null) {
                 processor.addLibrariesList(librariesList);
+            }
+            for (Path path : addToClasspath) {
+                processor.addLibrary(path);
             }
 
             processor.setMaxQueueDepth(maxQueueDepth);

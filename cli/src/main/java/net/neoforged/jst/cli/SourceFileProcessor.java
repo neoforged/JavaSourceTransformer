@@ -134,6 +134,10 @@ class SourceFileProcessor implements AutoCloseable {
         ClasspathSetup.addLibraries(librariesList, ijEnv);
     }
 
+    public void addLibrary(Path library) {
+        ClasspathSetup.addLibrary(library, ijEnv);
+    }
+
     @Override
     public void close() throws IOException {
         ijEnv.close();
