@@ -61,8 +61,9 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 if (foundClass == null) {
                     throw new IllegalStateException("Failed to find how class " + psiClass.getQualifiedName() + " was loaded while processing it");
                 } else if (foundClass != psiClass) {
-                    throw new IllegalStateException("Class " + psiClass + " was loaded from two different sources: " +
-                            psiClass.getContainingFile() + " and " + foundClass.getContainingFile());
+                    throw new IllegalStateException("Class " + psiClass.getQualifiedName() + " was loaded from two different sources: " +
+                                                    psiClass.getContainingFile().getVirtualFile().getPath() + " and " +
+                                                    foundClass.getContainingFile().getVirtualFile().getPath());
                 }
             }
 
