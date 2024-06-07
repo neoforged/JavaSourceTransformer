@@ -7,11 +7,11 @@ import com.intellij.util.io.URLUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -77,13 +77,7 @@ public final class ClasspathSetup {
                 continue;
             }
 
-            var libraryPath = Paths.get(libraryLine);
-
-            if (!Files.exists(libraryPath)) {
-                throw new UncheckedIOException(new FileNotFoundException(libraryLine));
-            }
-            ijEnv.addJarToClassPath(libraryPath);
-            System.out.println("Added " + libraryPath);
+            addLibrary(Paths.get(libraryLine), ijEnv);
         }
     }
 
@@ -102,5 +96,14 @@ public final class ClasspathSetup {
             return null;
         }
         return null;
+    }
+
+    public static void addLibrary(Path libraryPath, IntelliJEnvironmentImpl ijEnv) {
+        // Add an explicit check since PSI doesn't throw if it doesn't exist
+        if (!Files.exists(libraryPath)) {
+            throw new UncheckedIOException(new NoSuchFileException(libraryPath.toString()));
+        }
+        ijEnv.addJarToClassPath(libraryPath);
+        System.out.println("Added " + libraryPath);
     }
 }
