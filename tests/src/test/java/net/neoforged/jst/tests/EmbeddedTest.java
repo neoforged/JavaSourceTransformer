@@ -259,6 +259,11 @@ public class EmbeddedTest {
         void testNoModifiers() throws Exception {
             runATTest("no_modifiers");
         }
+
+        @Test
+        void testWildcardAndExplicit() throws Exception {
+            runATTest("wildcard_and_explicit");
+        }
     }
 
     protected final void runATTest(String testDirName) throws Exception {

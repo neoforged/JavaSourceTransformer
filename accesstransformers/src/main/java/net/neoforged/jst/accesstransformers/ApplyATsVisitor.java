@@ -20,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -34,10 +35,12 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
 
     private final AccessTransformerFiles ats;
     private final Replacements replacements;
+    private final Map<Target, Transformation> atCopy;
 
     public ApplyATsVisitor(AccessTransformerFiles ats, Replacements replacements) {
         this.ats = ats;
         this.replacements = replacements;
+        atCopy = new HashMap<>(ats.getAccessTransformers());
     }
 
     @Override
@@ -53,18 +56,20 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     return;
                 }
 
-                apply(ats.getAccessTransformers().get(new Target.ClassTarget(className)), psiClass, psiClass);
-                var fieldWildcard = ats.getAccessTransformers().get(new Target.WildcardFieldTarget(className));
+                apply(atCopy.get(new Target.ClassTarget(className)), psiClass, psiClass);
+                var fieldWildcard = atCopy.get(new Target.WildcardFieldTarget(className));
                 if (fieldWildcard != null) {
                     for (PsiField field : psiClass.getFields()) {
-                        apply(fieldWildcard, field, psiClass);
+                        // Apply a merged state if an explicit AT for the field already exists
+                        apply(merge(fieldWildcard, atCopy.remove(new Target.FieldTarget(className, field.getName()))), field, psiClass);
                     }
                 }
 
-                var methodWildcard = ats.getAccessTransformers().get(new Target.WildcardMethodTarget(className));
+                var methodWildcard = atCopy.get(new Target.WildcardMethodTarget(className));
                 if (methodWildcard != null) {
                     for (PsiMethod method : psiClass.getMethods()) {
-                        apply(methodWildcard, method, psiClass);
+                        // Apply a merged state if an explicit AT for the method already exists
+                        apply(merge(methodWildcard, atCopy.remove(method(className, method))), method, psiClass);
                     }
                 }
             }
@@ -72,13 +77,13 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
             final var cls = field.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                apply(ats.getAccessTransformers().get(new Target.FieldTarget(className, field.getName())), field, cls);
+                apply(atCopy.get(new Target.FieldTarget(className, field.getName())), field, cls);
             }
         } else if (element instanceof PsiMethod method) {
             final var cls = method.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                apply(ats.getAccessTransformers().get(new Target.MethodTarget(className, PsiHelper.getBinaryMethodName(method), PsiHelper.getBinaryMethodSignature(method))), method, cls);
+                apply(atCopy.get(method(className, method)), method, cls);
             }
         }
 
@@ -185,5 +190,13 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         } else {
             return "class";
         }
+    }
+
+    private static Transformation merge(Transformation a, @Nullable Transformation b) {
+        return b == null ? a : a.mergeStates(b);
+    }
+
+    private static Target.MethodTarget method(String owner, PsiMethod method) {
+        return new Target.MethodTarget(owner, PsiHelper.getBinaryMethodName(method), PsiHelper.getBinaryMethodSignature(method));
     }
 }
