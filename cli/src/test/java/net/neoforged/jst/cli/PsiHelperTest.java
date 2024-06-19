@@ -4,6 +4,7 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiTreeUtil;
+import net.neoforged.jst.api.Logger;
 import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.cli.intellij.IntelliJEnvironmentImpl;
 import org.intellij.lang.annotations.Language;
@@ -22,7 +23,7 @@ class PsiHelperTest {
 
     @BeforeAll
     static void setUp() throws IOException {
-        ijEnv = new IntelliJEnvironmentImpl();
+        ijEnv = new IntelliJEnvironmentImpl(new Logger(null, null));
     }
 
     @AfterAll
