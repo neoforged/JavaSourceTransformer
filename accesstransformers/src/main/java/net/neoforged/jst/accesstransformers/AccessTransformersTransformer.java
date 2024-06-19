@@ -16,7 +16,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AccessTransformersTransformer implements SourceTransformer {
 
@@ -27,9 +26,9 @@ public class AccessTransformersTransformer implements SourceTransformer {
     public AccessTransformerValidation validation = AccessTransformerValidation.LOG;
 
     private AccessTransformerFiles ats;
-    private Map<Target, Transformation> atCopy;
+    private Map<Target, Transformation> pendingATs;
     private Logger logger;
-    private final AtomicBoolean errored = new AtomicBoolean();
+    private volatile boolean errored;
 
     @Override
     public void beforeRun(TransformContext context) {
@@ -45,25 +44,25 @@ public class AccessTransformersTransformer implements SourceTransformer {
             }
         }
 
-        atCopy = new ConcurrentHashMap<>(ats.getAccessTransformers());
+        pendingATs = new ConcurrentHashMap<>(ats.getAccessTransformers());
     }
 
     @Override
     public boolean afterRun(TransformContext context) {
-        if (!atCopy.isEmpty()) {
-            atCopy.forEach((target, transformation) -> logger.error("Access transformer %s, targeting %s did not apply as its target doesn't exist", transformation, target));
-            errored.set(true);
+        if (!pendingATs.isEmpty()) {
+            pendingATs.forEach((target, transformation) -> logger.error("Access transformer %s, targeting %s did not apply as its target doesn't exist", transformation, target));
+            errored = true;
         }
 
-        return !(errored.get() && validation == AccessTransformerValidation.ERROR);
+        return !(errored && validation == AccessTransformerValidation.ERROR);
     }
 
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
-        var visitor = new ApplyATsVisitor(ats, replacements, atCopy, logger);
+        var visitor = new ApplyATsVisitor(ats, replacements, pendingATs, logger);
         visitor.visitFile(psiFile);
         if (visitor.errored) {
-            errored.set(true);
+            errored = true;
         }
     }
 
