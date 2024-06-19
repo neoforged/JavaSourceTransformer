@@ -1,6 +1,7 @@
 package net.neoforged.jst.tests;
 
 import net.neoforged.jst.cli.Main;
+import org.assertj.core.util.CanIgnoreReturnValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -264,19 +266,25 @@ public class EmbeddedTest {
         void testWildcardAndExplicit() throws Exception {
             runATTest("wildcard_and_explicit");
         }
+
+        @Test
+        void testMissingTarget() throws Exception {
+            runATTest("missing_target");
+        }
     }
 
     protected final void runATTest(String testDirName) throws Exception {
         testDirName = "accesstransformer/" + testDirName;
-        runTest(testDirName, "--enable-accesstransformers", "--access-transformer", testDataRoot.resolve(testDirName).resolve("accesstransformer.cfg").toString());
+        var atPath = testDataRoot.resolve(testDirName).resolve("accesstransformer.cfg");
+        runTest(testDirName, txt -> txt.replace(atPath.toAbsolutePath().toString(), "{atpath}"), "--enable-accesstransformers", "--access-transformer", atPath.toString());
     }
 
     protected final void runParchmentTest(String testDirName, String mappingsFilename) throws Exception {
         testDirName = "parchment/" + testDirName;
-        runTest(testDirName, "--enable-parchment", "--parchment-mappings", testDataRoot.resolve(testDirName).resolve(mappingsFilename).toString());
+        runTest(testDirName, UnaryOperator.identity(), "--enable-parchment", "--parchment-mappings", testDataRoot.resolve(testDirName).resolve(mappingsFilename).toString());
     }
 
-    protected final void runTest(String testDirName, String... args) throws Exception {
+    protected final void runTest(String testDirName, UnaryOperator<String> consoleMapper, String... args) throws Exception {
         var testDir = testDataRoot.resolve(testDirName);
         var sourceDir = testDir.resolve("source");
         var expectedDir = testDir.resolve("expected");
@@ -299,7 +307,7 @@ public class EmbeddedTest {
         arguments.addAll(Arrays.asList(args));
         arguments.add(inputFile.toString());
         arguments.add(outputFile.toString());
-        runTool(arguments.toArray(String[]::new));
+        var consoleOut = consoleMapper.apply(runTool(arguments.toArray(String[]::new)));
 
         try (var zipFile = new ZipFile(outputFile.toFile())) {
             var it = zipFile.entries().asIterator();
@@ -314,9 +322,15 @@ public class EmbeddedTest {
                 assertEquals(expectedFile, actualFile);
             }
         }
+
+        var expectedLog = testDir.resolve("expected.log");
+        if (Files.exists(expectedLog)) {
+            assertThat(expectedLog).content().isEqualToNormalizingNewlines(consoleOut);
+        }
     }
 
-    protected void runTool(String... args) throws Exception {
+    @CanIgnoreReturnValue
+    protected String runTool(String... args) throws Exception {
         // This is thread hostile, but what can I do :-[
         var oldOut = System.out;
         var oldErr = System.err;
@@ -337,6 +351,8 @@ public class EmbeddedTest {
         if (exitCode != 0) {
             throw new RuntimeException("Process failed with exit code 0: " + capturedOutString);
         }
+
+        return capturedOutString;
     }
 
     protected static String getRequiredSystemProperty(String key) {

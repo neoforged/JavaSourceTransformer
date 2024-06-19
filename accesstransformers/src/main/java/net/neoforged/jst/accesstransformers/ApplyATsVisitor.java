@@ -1,5 +1,6 @@
 package net.neoforged.jst.accesstransformers;
 
+import com.intellij.navigation.NavigationItem;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiField;
@@ -13,6 +14,7 @@ import com.intellij.psi.util.ClassUtil;
 import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
 import net.neoforged.accesstransformer.parser.Target;
 import net.neoforged.accesstransformer.parser.Transformation;
+import net.neoforged.jst.api.Logger;
 import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.NotNull;
@@ -36,11 +38,14 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
     private final AccessTransformerFiles ats;
     private final Replacements replacements;
     private final Map<Target, Transformation> atCopy;
+    private final Logger logger;
+    boolean errored = false;
 
-    public ApplyATsVisitor(AccessTransformerFiles ats, Replacements replacements) {
+    public ApplyATsVisitor(AccessTransformerFiles ats, Replacements replacements, Map<Target, Transformation> atCopy, Logger logger) {
         this.ats = ats;
         this.replacements = replacements;
-        atCopy = new HashMap<>(ats.getAccessTransformers());
+        this.logger = logger;
+        this.atCopy = atCopy;
     }
 
     @Override
@@ -56,20 +61,25 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     return;
                 }
 
-                apply(atCopy.get(new Target.ClassTarget(className)), psiClass, psiClass);
-                var fieldWildcard = atCopy.get(new Target.WildcardFieldTarget(className));
+                apply(atCopy.remove(new Target.ClassTarget(className)), psiClass, psiClass);
+
+                var fieldWildcard = atCopy.remove(new Target.WildcardFieldTarget(className));
                 if (fieldWildcard != null) {
                     for (PsiField field : psiClass.getFields()) {
                         // Apply a merged state if an explicit AT for the field already exists
-                        apply(merge(fieldWildcard, atCopy.remove(new Target.FieldTarget(className, field.getName()))), field, psiClass);
+                        var newState = merge(fieldWildcard, atCopy.remove(new Target.FieldTarget(className, field.getName())));
+                        logger.debug("Applying field wildcard AT %s to %s in %s", newState, field.getName(), className);
+                        apply(newState, field, psiClass);
                     }
                 }
 
-                var methodWildcard = atCopy.get(new Target.WildcardMethodTarget(className));
+                var methodWildcard = atCopy.remove(new Target.WildcardMethodTarget(className));
                 if (methodWildcard != null) {
                     for (PsiMethod method : psiClass.getMethods()) {
                         // Apply a merged state if an explicit AT for the method already exists
-                        apply(merge(methodWildcard, atCopy.remove(method(className, method))), method, psiClass);
+                        var newState = merge(methodWildcard, atCopy.remove(method(className, method)));
+                        logger.debug("Applying method wildcard AT %s to %s in %s", newState, method.getName(), className);
+                        apply(newState, method, psiClass);
                     }
                 }
             }
@@ -77,22 +87,37 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
             final var cls = field.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                apply(atCopy.get(new Target.FieldTarget(className, field.getName())), field, cls);
+                apply(atCopy.remove(new Target.FieldTarget(className, field.getName())), field, cls);
             }
         } else if (element instanceof PsiMethod method) {
             final var cls = method.getContainingClass();
             if (cls != null && cls.getQualifiedName() != null) {
                 String className = ClassUtil.getJVMClassName(cls);
-                apply(atCopy.get(method(className, method)), method, cls);
+                apply(atCopy.remove(method(className, method)), method, cls);
             }
         }
 
         element.acceptChildren(this);
     }
 
-    // TODO - proper logging when an AT can't be applied
     private void apply(@Nullable Transformation at, PsiModifierListOwner owner, PsiClass containingClass) {
-        if (at == null || !at.isValid()) return;
+        if (at == null) return;
+        if (!at.isValid()) {
+            error("Found invalid access transformer: %s. Final state: conflicting", at);
+            return;
+        }
+
+        var targetInfo = new Object() {
+            @Override
+            public String toString() {
+                if (owner instanceof PsiClass cls) {
+                    return ClassUtil.getJVMClassName(cls);
+                }
+                return ((NavigationItem) owner).getName() + " of " + ClassUtil.getJVMClassName(containingClass);
+            }
+        };
+        logger.debug("Applying AT %s to %s", at, targetInfo);
+
         var modifiers = owner.getModifierList();
 
         var targetAcc = at.modifier();
@@ -100,7 +125,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         // If we're modifying a non-static interface method we can only make it public, meaning it must be defined as default
         if (containingClass.isInterface() && owner instanceof PsiMethod && !modifiers.hasModifierProperty(PsiModifier.STATIC)) {
             if (targetAcc != Transformation.Modifier.PUBLIC) {
-                System.err.println("Non-static interface methods can only be made public");
+                error("Access transformer %s targeting %s attempted to make a non-static interface method %s. They can only be made public.", at, targetInfo, targetAcc);
             } else {
                 for (var kw : modifiers.getChildren()) {
                     if (kw instanceof PsiKeyword && kw.getText().equals(PsiKeyword.PRIVATE)) { // Strip private, replace it with default
@@ -125,6 +150,8 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     .filter(kw -> kw.getText().equals(PsiModifier.FINAL))
                     .findFirst()
                     .ifPresent(replacements::remove);
+        } else if (finalState == Transformation.FinalState.MAKEFINAL && !modifiers.hasModifierProperty(PsiModifier.FINAL)) {
+            error("Access transformer %s attempted to make %s final. Was non-final", at, targetInfo);
         }
     }
 
@@ -178,6 +205,11 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                 }
             }
         }
+    }
+
+    private void error(String message, Object... args) {
+        logger.error(message, args);
+        errored = true;
     }
 
     private static String detectKind(PsiClass cls) {

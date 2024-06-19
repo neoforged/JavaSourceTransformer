@@ -10,7 +10,7 @@ import java.util.List;
  */
 public class ExecutableJarTest extends EmbeddedTest {
     @Override
-    protected void runTool(String... args) throws Exception {
+    protected String runTool(String... args) throws Exception {
         var javaExecutablePath = ProcessHandle.current()
                 .info()
                 .command()
@@ -28,12 +28,13 @@ public class ExecutableJarTest extends EmbeddedTest {
 
         process.getOutputStream().close(); // Close stdin to java
 
-        byte[] output = process.getInputStream().readAllBytes();
-        System.out.println(new String(output));
+        String output = new String(process.getInputStream().readAllBytes());
 
         int exitCode = process.waitFor();
         if (exitCode != 0) {
-            throw new RuntimeException(new String(output));
+            throw new RuntimeException(output);
         }
+
+        return output;
     }
 }

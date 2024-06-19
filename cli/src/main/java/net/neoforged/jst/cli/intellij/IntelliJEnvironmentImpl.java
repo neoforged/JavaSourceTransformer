@@ -33,6 +33,7 @@ import com.intellij.psi.impl.source.tree.JavaTreeGenerator;
 import com.intellij.psi.impl.source.tree.TreeGenerator;
 import com.intellij.psi.util.JavaClassSupers;
 import net.neoforged.jst.api.IntelliJEnvironment;
+import net.neoforged.jst.api.Logger;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.io.IOException;
@@ -43,13 +44,15 @@ import java.util.Objects;
 
 public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseable {
 
+    private final Logger logger;
     private final Disposable rootDisposable;
     private final Path tempDir;
     private final MockProject project;
     private final JavaCoreProjectEnvironment javaEnv;
     private final PsiManager psiManager;
 
-    public IntelliJEnvironmentImpl() throws IOException {
+    public IntelliJEnvironmentImpl(Logger logger) throws IOException {
+        this.logger = logger;
         System.setProperty("java.awt.headless", "true");
 
         tempDir = Files.createTempDirectory("jst");
@@ -111,7 +114,7 @@ public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseab
     public void addCurrentJdkToClassPath() {
         // Add the Java Runtime we are currently running in
         var javaHome = Paths.get(System.getProperty("java.home"));
-        ClasspathSetup.addJdkModules(javaHome, javaEnv);
+        ClasspathSetup.addJdkModules(logger, javaHome, javaEnv);
     }
 
     @Override

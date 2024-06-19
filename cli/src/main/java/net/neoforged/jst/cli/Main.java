@@ -1,5 +1,6 @@
 package net.neoforged.jst.cli;
 
+import net.neoforged.jst.api.Logger;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.SourceTransformerPlugin;
 import net.neoforged.jst.cli.io.FileSinks;
@@ -37,6 +38,9 @@ public class Main implements Callable<Integer> {
     @CommandLine.Option(names = "--max-queue-depth", description = "When both input and output support ordering (archives), the transformer will try to maintain that order. To still process items in parallel, a queue is used. Larger queue depths lead to higher memory usage.")
     int maxQueueDepth = 100;
 
+    @CommandLine.Command(name = "--debug", description = "Print additional debugging information")
+    boolean debug = false;
+
     private final HashSet<SourceTransformer> enabledTransformers = new HashSet<>();
 
     public static void main(String[] args) {
@@ -59,9 +63,9 @@ public class Main implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-
+        var logger = debug ? new Logger(System.out, System.err) : new Logger(null, System.err);
         try (var source = FileSources.create(inputPath, inputFormat);
-             var processor = new SourceFileProcessor()) {
+             var processor = new SourceFileProcessor(logger)) {
 
             if (librariesList != null) {
                 processor.addLibrariesList(librariesList);
@@ -75,7 +79,10 @@ public class Main implements Callable<Integer> {
             var orderedTransformers = new ArrayList<>(enabledTransformers);
 
             try (var sink = FileSinks.create(outputPath, outputFormat, source)) {
-                processor.process(source, sink, orderedTransformers);
+                if (!processor.process(source, sink, orderedTransformers)) {
+                    logger.error("Transformation failed");
+                    return 1;
+                }
             }
 
         }

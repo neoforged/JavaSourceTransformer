@@ -4,6 +4,7 @@ import com.intellij.core.JavaCoreProjectEnvironment;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.io.URLUtil;
+import net.neoforged.jst.api.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,7 +22,7 @@ public final class ClasspathSetup {
     private ClasspathSetup() {
     }
 
-    public static void addJdkModules(Path jdkHome, JavaCoreProjectEnvironment javaEnv) {
+    public static void addJdkModules(Logger logger, Path jdkHome, JavaCoreProjectEnvironment javaEnv) {
         var jrtFileSystem = javaEnv.getEnvironment().getJrtFileSystem();
         if (jrtFileSystem == null) {
             throw new IllegalStateException("No JRT file system was configured");
@@ -29,13 +30,13 @@ public final class ClasspathSetup {
 
         VirtualFile jdkVfsRoot = jrtFileSystem.findFileByPath(jdkHome.toAbsolutePath() + URLUtil.JAR_SEPARATOR);
         if (jdkVfsRoot == null) {
-            System.err.println("Failed to load VFS-entry for JDK home " + jdkHome + ". Is it missing?");
+            logger.error("Failed to load VFS-entry for JDK home " + jdkHome + ". Is it missing?");
             return;
         }
 
         var modulesFolder = jdkVfsRoot.findChild("modules");
         if (modulesFolder == null) {
-            System.err.println("VFS for JDK " + jdkHome + " doesn't have a modules subfolder");
+            logger.error("VFS for JDK " + jdkHome + " doesn't have a modules subfolder");
             return;
         }
 
@@ -45,7 +46,7 @@ public final class ClasspathSetup {
             for (String module : modules) {
                 var moduleRoot = modulesFolder.findChild(module);
                 if (moduleRoot == null || !moduleRoot.isDirectory()) {
-                    System.err.println("Couldn't find module " + module + " even though it was listed in the release file of JDK " + jdkHome);
+                    logger.error("Couldn't find module " + module + " even though it was listed in the release file of JDK " + jdkHome);
                 } else {
                     javaEnv.addSourcesToClasspath(moduleRoot);
                     moduleCount++;
@@ -61,10 +62,10 @@ public final class ClasspathSetup {
             }
         }
 
-        System.out.println("Added " + moduleCount + " modules from " + jdkHome);
+        logger.debug("Added %s modules from %s", moduleCount, jdkHome);
     }
 
-    public static void addLibraries(Path librariesPath, IntelliJEnvironmentImpl ijEnv) throws IOException {
+    public static void addLibraries(Logger logger, Path librariesPath, IntelliJEnvironmentImpl ijEnv) throws IOException {
         for (String libraryLine : Files.readAllLines(librariesPath)) {
             libraryLine = libraryLine.trim();
 
@@ -77,7 +78,7 @@ public final class ClasspathSetup {
                 continue;
             }
 
-            addLibrary(Paths.get(libraryLine), ijEnv);
+            addLibrary(logger, Paths.get(libraryLine), ijEnv);
         }
     }
 
@@ -98,12 +99,12 @@ public final class ClasspathSetup {
         return null;
     }
 
-    public static void addLibrary(Path libraryPath, IntelliJEnvironmentImpl ijEnv) {
+    public static void addLibrary(Logger logger, Path libraryPath, IntelliJEnvironmentImpl ijEnv) {
         // Add an explicit check since PSI doesn't throw if it doesn't exist
         if (!Files.exists(libraryPath)) {
             throw new UncheckedIOException(new NoSuchFileException(libraryPath.toString()));
         }
         ijEnv.addJarToClassPath(libraryPath);
-        System.out.println("Added " + libraryPath);
+        logger.debug("Added %s", libraryPath);
     }
 }

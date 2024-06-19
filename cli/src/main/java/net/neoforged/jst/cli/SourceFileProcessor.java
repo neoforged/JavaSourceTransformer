@@ -5,6 +5,7 @@ import com.intellij.openapi.vfs.VirtualFileManager;
 import net.neoforged.jst.api.FileEntry;
 import net.neoforged.jst.api.FileSink;
 import net.neoforged.jst.api.FileSource;
+import net.neoforged.jst.api.Logger;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.TransformContext;
@@ -24,19 +25,22 @@ import java.util.List;
  * https://github.com/JetBrains/kotlin/blob/22aa9ee65f759ad21aeaeb8ad9ac0b123b2c32fe/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/compiler/KotlinCoreEnvironment.kt#L108
  */
 class SourceFileProcessor implements AutoCloseable {
-    private final IntelliJEnvironmentImpl ijEnv = new IntelliJEnvironmentImpl();
+    private final IntelliJEnvironmentImpl ijEnv;
     private int maxQueueDepth = 50;
+    private final Logger logger;
 
-    public SourceFileProcessor() throws IOException {
+    public SourceFileProcessor(Logger logger) throws IOException {
+        this.logger = logger;
+        ijEnv = new IntelliJEnvironmentImpl(logger);
         ijEnv.addCurrentJdkToClassPath();
     }
 
-    public void process(FileSource source, FileSink sink, List<SourceTransformer> transformers) throws IOException {
+    public boolean process(FileSource source, FileSink sink, List<SourceTransformer> transformers) throws IOException {
         if (source.canHaveMultipleEntries() && !sink.canHaveMultipleEntries()) {
             throw new IllegalStateException("Cannot have an input with possibly more than one file when the output is a single file.");
         }
 
-        var context = new TransformContext(ijEnv, source, sink);
+        var context = new TransformContext(ijEnv, source, sink, logger);
 
         var sourceRoot = source.createSourceRoot(VirtualFileManager.getInstance());
         ijEnv.addSourceRoot(sourceRoot);
@@ -68,9 +72,12 @@ class SourceFileProcessor implements AutoCloseable {
             }
         }
 
+        boolean isOk = true;
         for (var transformer : transformers) {
-            transformer.afterRun(context);
+            isOk = isOk && transformer.afterRun(context);
         }
+
+        return isOk;
     }
 
     private void processEntry(FileEntry entry, VirtualFile sourceRoot, List<SourceTransformer> transformers, FileSink sink) throws IOException {
@@ -131,11 +138,11 @@ class SourceFileProcessor implements AutoCloseable {
     }
 
     public void addLibrariesList(Path librariesList) throws IOException {
-        ClasspathSetup.addLibraries(librariesList, ijEnv);
+        ClasspathSetup.addLibraries(logger, librariesList, ijEnv);
     }
 
     public void addLibrary(Path library) {
-        ClasspathSetup.addLibrary(library, ijEnv);
+        ClasspathSetup.addLibrary(logger, library, ijEnv);
     }
 
     @Override
