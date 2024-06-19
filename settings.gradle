@@ -28,18 +28,6 @@ dependencyResolutionManagement {
             url "https://maven.neoforged.net/releases/"
         }
     }
-    repositories {
-        maven {
-            name 'Maven for PR #10' // https://github.com/neoforged/AccessTransformers/pull/10
-            url 'https://prmaven.neoforged.net/AccessTransformers/pr10'
-            content {
-                includeModule('net.neoforged.accesstransformers', 'at-modlauncher')
-                includeModule('net.neoforged.accesstransformers', 'at-parser')
-                includeModule('net.neoforged.accesstransformers', 'at-cli')
-                includeModule('net.neoforged', 'accesstransformers')
-            }
-        }
-    }
 }
 
 rootProject.name = 'JavaSourceTransformer'
