@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -26,6 +27,8 @@ import java.util.List;
 class SourceFileProcessor implements AutoCloseable {
     private final IntelliJEnvironmentImpl ijEnv = new IntelliJEnvironmentImpl();
     private int maxQueueDepth = 50;
+
+    private final List<String> ignoredPrefixes = new ArrayList<>();
 
     public SourceFileProcessor() throws IOException {
         ijEnv.addCurrentJdkToClassPath();
@@ -83,7 +86,7 @@ class SourceFileProcessor implements AutoCloseable {
             byte[] content = in.readAllBytes();
             var lastModified = entry.lastModified();
 
-            if (!transformers.isEmpty() && entry.hasExtension("java")) {
+            if (!isIgnored(entry.relativePath()) && !transformers.isEmpty() && entry.hasExtension("java")) {
                 var orgContent = content;
                 content = transformSource(sourceRoot, entry.relativePath(), transformers, content);
                 if (orgContent != content) {
@@ -92,6 +95,15 @@ class SourceFileProcessor implements AutoCloseable {
             }
             sink.putFile(entry.relativePath(), lastModified, content);
         }
+    }
+
+    private boolean isIgnored(String relativePath) {
+        for (String ignoredPrefix : ignoredPrefixes) {
+            if (relativePath.startsWith(ignoredPrefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     byte[] transformSource(VirtualFile contentRoot, String path, List<SourceTransformer> transformers, byte[] originalContentBytes) {
@@ -136,6 +148,11 @@ class SourceFileProcessor implements AutoCloseable {
 
     public void addLibrary(Path library) {
         ClasspathSetup.addLibrary(library, ijEnv);
+    }
+
+    public void addIgnoredPrefix(String ignoredPrefix) {
+        System.out.println("Not transforming entries starting with " + ignoredPrefix);
+        this.ignoredPrefixes.add(ignoredPrefix);
     }
 
     @Override
