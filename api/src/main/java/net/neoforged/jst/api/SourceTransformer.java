@@ -6,7 +6,8 @@ public interface SourceTransformer {
     default void beforeRun(TransformContext context) {
     }
 
-    default void afterRun(TransformContext context) {
+    default boolean afterRun(TransformContext context) {
+        return true;
     }
 
     void visitFile(PsiFile psiFile, Replacements replacements);

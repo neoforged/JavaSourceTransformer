@@ -28,11 +28,16 @@ It can be invoked as a standalone executable Jar-File. Java 17 is required.
 
 ```
 Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
-           [--max-queue-depth=<maxQueueDepth>] [--out-format=<outputFormat>] [--enable-parchment
-           --parchment-mappings=<mappingsPath> [--parchment-javadoc]] INPUT OUTPUT
+           [--max-queue-depth=<maxQueueDepth>] [--out-format=<outputFormat>]
+           [--classpath=<addToClasspath>]... [--enable-parchment
+           --parchment-mappings=<mappingsPath> [--parchment-javadoc]] [--enable-accesstransformers
+           --access-transformer=<atFiles> [--access-transformer=<atFiles>]...
+           [--access-transformer-validation=<validation>]] INPUT OUTPUT
       INPUT                 Path to a single Java-file, a source-archive or a folder containing the
                               source to transform.
       OUTPUT                Path to where the resulting source should be placed.
+      --classpath=<addToClasspath>
+                            Additional classpath entries to use. Is combined with --libraries-list.
   -h, --help                Show this help message and exit.
       --in-format=<inputFormat>
                             Specify the format of INPUT explicitly. AUTO (the default) performs
@@ -53,6 +58,14 @@ Plugin - parchment
       --enable-parchment    Enable parchment
       --parchment-javadoc
       --parchment-mappings=<mappingsPath>
+
+Plugin - accesstransformers
+      --access-transformer=<atFiles>
+
+      --access-transformer-validation=<validation>
+                            The level of validation to use for ats
+      --enable-accesstransformers
+                            Enable accesstransformers
 ```
 
 ## Licenses

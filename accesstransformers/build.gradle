@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation project(":api")
-    implementation 'net.neoforged.accesstransformers:at-parser:11.0.0'
+    implementation 'net.neoforged.accesstransformers:at-parser:11.0.4'
 
     testImplementation platform("org.junit:junit-bom:$junit_version")
     testImplementation 'org.junit.jupiter:junit-jupiter'

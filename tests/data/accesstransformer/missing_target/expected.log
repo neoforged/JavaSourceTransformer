@@ -1,0 +1,3 @@
+Access transformer PUBLIC LEAVE {atpath}:3, targeting ExistingClass FIELD notAField did not apply as its target doesn't exist
+Access transformer PUBLIC LEAVE {atpath}:5, targeting DoesntExist CLASS did not apply as its target doesn't exist
+Access transformer PUBLIC LEAVE {atpath}:4, targeting ExistingClass METHOD notAMethod()V did not apply as its target doesn't exist
