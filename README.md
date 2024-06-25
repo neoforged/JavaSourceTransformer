@@ -30,42 +30,47 @@ It can be invoked as a standalone executable Jar-File. Java 17 is required.
 Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
            [--max-queue-depth=<maxQueueDepth>] [--out-format=<outputFormat>]
            [--classpath=<addToClasspath>]... [--enable-parchment
-           --parchment-mappings=<mappingsPath> [--parchment-javadoc]] [--enable-accesstransformers
+           --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc]
+           [--parchment-conflict-prefix=<conflictPrefix>]] [--enable-accesstransformers
            --access-transformer=<atFiles> [--access-transformer=<atFiles>]...
            [--access-transformer-validation=<validation>]] INPUT OUTPUT
-      INPUT                 Path to a single Java-file, a source-archive or a folder containing the
-                              source to transform.
-      OUTPUT                Path to where the resulting source should be placed.
+      INPUT                Path to a single Java-file, a source-archive or a folder containing the
+                             source to transform.
+      OUTPUT               Path to where the resulting source should be placed.
       --classpath=<addToClasspath>
-                            Additional classpath entries to use. Is combined with --libraries-list.
-  -h, --help                Show this help message and exit.
+                           Additional classpath entries to use. Is combined with --libraries-list.
+  -h, --help               Show this help message and exit.
       --in-format=<inputFormat>
-                            Specify the format of INPUT explicitly. AUTO (the default) performs
-                              auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE
-                              for source jars or zips, and FOLDER for folders containing Java code.
+                           Specify the format of INPUT explicitly. AUTO (the default) performs
+                             auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE
+                             for source jars or zips, and FOLDER for folders containing Java code.
       --libraries-list=<librariesList>
-                            Specifies a file that contains a path to an archive or directory to add
-                              to the classpath on each line.
+                           Specifies a file that contains a path to an archive or directory to add
+                             to the classpath on each line.
       --max-queue-depth=<maxQueueDepth>
-                            When both input and output support ordering (archives), the transformer
-                              will try to maintain that order. To still process items in parallel,
-                              a queue is used. Larger queue depths lead to higher memory usage.
+                           When both input and output support ordering (archives), the transformer
+                             will try to maintain that order. To still process items in parallel, a
+                             queue is used. Larger queue depths lead to higher memory usage.
       --out-format=<outputFormat>
-                            Specify the format of OUTPUT explicitly. Allows the same options as
-                              --in-format.
-  -V, --version             Print version information and exit.
+                           Specify the format of OUTPUT explicitly. Allows the same options as
+                             --in-format.
+  -V, --version            Print version information and exit.
 Plugin - parchment
-      --enable-parchment    Enable parchment
-      --parchment-javadoc
+      --enable-parchment   Enable parchment
+      --parchment-conflict-prefix=<conflictPrefix>
+                           Apply the prefix specified if a Parchment parameter name conflicts with
+                             existing variable names
+      --[no-]parchment-javadoc
+                           Whether Parchment javadocs should be applied
       --parchment-mappings=<mappingsPath>
-
+                           The location of the Parchment mappings file
 Plugin - accesstransformers
       --access-transformer=<atFiles>
 
       --access-transformer-validation=<validation>
-                            The level of validation to use for ats
+                           The level of validation to use for ats
       --enable-accesstransformers
-                            Enable accesstransformers
+                           Enable accesstransformers
 ```
 
 ## Licenses

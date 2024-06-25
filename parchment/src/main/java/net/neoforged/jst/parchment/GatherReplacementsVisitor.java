@@ -1,5 +1,6 @@
 package net.neoforged.jst.parchment;
 
+import com.intellij.lang.jvm.JvmParameter;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
@@ -13,8 +14,8 @@ import com.intellij.psi.search.GlobalSearchScope;
 import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsDatabase;
-import net.neoforged.jst.parchment.namesanddocs.NamesAndDocsForParameter;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +30,8 @@ import java.util.function.UnaryOperator;
 class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
     private final NamesAndDocsDatabase namesAndDocs;
     private final boolean enableJavadoc;
+    @Nullable
+    private final UnaryOperator<String> conflictResolver;
     private final Replacements replacements;
     /**
      * Renamed parameters of the combined outer scopes we are currently visiting.
@@ -39,9 +42,10 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
     public GatherReplacementsVisitor(NamesAndDocsDatabase namesAndDocs,
                                      boolean enableJavadoc,
-                                     Replacements replacements) {
+                                     @Nullable UnaryOperator<String> conflictResolver, Replacements replacements) {
         this.namesAndDocs = namesAndDocs;
         this.enableJavadoc = enableJavadoc;
+        this.conflictResolver = conflictResolver;
         this.replacements = replacements;
     }
 
@@ -79,14 +83,24 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
                 Map<String, String> parameterJavadoc = new HashMap<>();
                 Map<String, String> renamedParameters = new HashMap<>();
-                final UnaryOperator<String> remapper;
-                if (psiMethod.getBody() == null) {
-                    remapper = p -> "p" + uppercase(p);
+
+                final UnaryOperator<String> namer;
+                if (conflictResolver == null) {
+                    namer = UnaryOperator.identity();
                 } else {
-                    final Set<String> localRefs = new HashSet<>();
-                    new LocalReferenceCollector(localRefs).visitElement(psiMethod.getBody());
-                    remapper = p -> localRefs.contains(p) ? "p" + uppercase(p) : p;
+                    if (psiMethod.getBody() == null) {
+                        namer = conflictResolver;
+                    } else {
+                        final Set<String> localRefs = new HashSet<>();
+                        // Existing parameter names are considered reserved to avoid patched-in parameters to conflict with Parchment names
+                        for (JvmParameter parameter : psiMethod.getParameters()) {
+                            localRefs.add(parameter.getName());
+                        }
+                        new ReservedNamesCollector(localRefs).visitElement(psiMethod.getBody());
+                        namer = p -> localRefs.contains(p) ? conflictResolver.apply(p) : p;
+                    }
                 }
+
                 List<String> parameterOrder = new ArrayList<>();
 
                 var parameters = psiMethod.getParameterList().getParameters();
@@ -107,7 +121,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     // Optionally replace the parameter name, but skip record constructors, since those could have
                     // implications for the field names.
                     if (paramData != null && paramData.getName() != null && !PsiHelper.isRecordConstructor(psiMethod)) {
-                        var paramName = remapper.apply(paramData.getName());
+                        var paramName = namer.apply(paramData.getName());
 
                         // Replace parameters within the method body
                         activeParameters.put(psiParameter, paramName);

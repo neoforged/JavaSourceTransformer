@@ -1,5 +1,6 @@
 package net.neoforged.jst.parchment;
 
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiJavaToken;
 import com.intellij.psi.PsiLocalVariable;
@@ -11,16 +12,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 
-public class LocalReferenceCollector extends PsiRecursiveElementVisitor {
-    public final Set<String> references;
-    public LocalReferenceCollector(Set<String> references) {
-        this.references = references;
+public class ReservedNamesCollector extends PsiRecursiveElementVisitor {
+    public final Set<String> names;
+    public ReservedNamesCollector(Set<String> names) {
+        this.names = names;
     }
 
     @Override
     public void visitElement(@NotNull PsiElement element) {
         if (element instanceof PsiParameter parameter) {
-            references.add(parameter.getName());
+            names.add(parameter.getName());
         } else if (element instanceof PsiReferenceExpression reference && !(element instanceof PsiMethodReferenceExpression)) {
             boolean qualified = false;
             // Unqualified references are to be considered local variables
@@ -32,10 +33,15 @@ public class LocalReferenceCollector extends PsiRecursiveElementVisitor {
             }
 
             if (!qualified) {
-                references.add(reference.getLastChild().getText());
+                names.add(reference.getLastChild().getText());
             }
         } else if (element instanceof PsiLocalVariable variable) {
-            references.add(variable.getName());
+            names.add(variable.getName());
+        } else if (element instanceof PsiClass cls) {
+            // To catch cases where inherited protected fields of local classes take precedence over the parameters
+            // when we encounter a class local to a method we will consider all its field names reserved
+            names.addAll(PsiParchmentHelper.getAllFieldNames(cls));
+            return; // But we don't need to process further as references in the methods declared in the local class are out of scope for this check
         }
 
         element.acceptChildren(this);
