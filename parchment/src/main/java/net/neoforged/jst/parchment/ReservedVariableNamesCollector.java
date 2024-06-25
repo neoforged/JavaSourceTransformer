@@ -12,9 +12,19 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 
-public class ReservedNamesCollector extends PsiRecursiveElementVisitor {
+/**
+ * An element visitor that collects all variable names that are in use, or can otherwise conflict if used as method parameter name.
+ * <p>
+ * A reserved variable name is:
+ * <ul>
+ *     <li>the name of a method parameter</li>
+ *     <li>the identifier of a member used in an unqualified reference expression (e.g. <code>someField = "abc"</code>)</li>
+ *     <li>the names of the fields an anonymous class or method-local class has</li>
+ * </ul>
+ */
+public class ReservedVariableNamesCollector extends PsiRecursiveElementVisitor {
     public final Set<String> names;
-    public ReservedNamesCollector(Set<String> names) {
+    public ReservedVariableNamesCollector(Set<String> names) {
         this.names = names;
     }
 

@@ -2,13 +2,12 @@ package net.neoforged.jst.parchment.namesanddocs.parchment;
 
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiTreeUtil;
 import net.neoforged.jst.api.Logger;
 import net.neoforged.jst.cli.intellij.IntelliJEnvironmentImpl;
-import net.neoforged.jst.parchment.ReservedNamesCollector;
+import net.neoforged.jst.parchment.ReservedVariableNamesCollector;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,7 +19,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ReservedNamesTest {
+public class ReservedVariableNamesTest {
     static IntelliJEnvironmentImpl ijEnv;
 
     @BeforeAll
@@ -160,7 +159,7 @@ public class ReservedNamesTest {
 
     private Set<String> collectReferences(PsiElement element) {
         var set = new HashSet<String>();
-        new ReservedNamesCollector(set).visitElement(element);
+        new ReservedVariableNamesCollector(set).visitElement(element);
         return set;
     }
 

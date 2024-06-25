@@ -96,7 +96,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                         for (JvmParameter parameter : psiMethod.getParameters()) {
                             localRefs.add(parameter.getName());
                         }
-                        new ReservedNamesCollector(localRefs).visitElement(psiMethod.getBody());
+                        new ReservedVariableNamesCollector(localRefs).visitElement(psiMethod.getBody());
                         namer = p -> localRefs.contains(p) ? conflictResolver.apply(p) : p;
                     }
                 }
