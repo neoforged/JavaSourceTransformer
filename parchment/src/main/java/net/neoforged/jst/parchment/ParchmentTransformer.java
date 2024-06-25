@@ -33,10 +33,8 @@ public class ParchmentTransformer implements SourceTransformer {
 
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
-
         var visitor = new GatherReplacementsVisitor(namesAndDocs, enableJavadoc, replacements);
         visitor.visitElement(psiFile);
-
     }
 
 }

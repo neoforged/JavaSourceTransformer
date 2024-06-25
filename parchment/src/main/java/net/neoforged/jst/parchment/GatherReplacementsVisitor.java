@@ -18,13 +18,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.UnaryOperator;
 
 class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
-
     private final NamesAndDocsDatabase namesAndDocs;
     private final boolean enableJavadoc;
     private final Replacements replacements;
@@ -33,7 +35,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
      * Since scopes may be nested (classes defined in method bodies and their methods),
      * this may contain the parameters of multiple scopes simultaneously.
      */
-    private final Map<PsiParameter, NamesAndDocsForParameter> activeParameters = new IdentityHashMap<>();
+    private final Map<PsiParameter, String> activeParameters = new IdentityHashMap<>();
 
     public GatherReplacementsVisitor(NamesAndDocsDatabase namesAndDocs,
                                      boolean enableJavadoc,
@@ -77,6 +79,14 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
                 Map<String, String> parameterJavadoc = new HashMap<>();
                 Map<String, String> renamedParameters = new HashMap<>();
+                final UnaryOperator<String> remapper;
+                if (psiMethod.getBody() == null) {
+                    remapper = p -> "p" + uppercase(p);
+                } else {
+                    final Set<String> localRefs = new HashSet<>();
+                    new LocalReferenceCollector(localRefs).visitElement(psiMethod.getBody());
+                    remapper = p -> localRefs.contains(p) ? "p" + uppercase(p) : p;
+                }
                 List<String> parameterOrder = new ArrayList<>();
 
                 var parameters = psiMethod.getParameterList().getParameters();
@@ -97,18 +107,20 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     // Optionally replace the parameter name, but skip record constructors, since those could have
                     // implications for the field names.
                     if (paramData != null && paramData.getName() != null && !PsiHelper.isRecordConstructor(psiMethod)) {
+                        var paramName = remapper.apply(paramData.getName());
+
                         // Replace parameters within the method body
-                        activeParameters.put(psiParameter, paramData);
+                        activeParameters.put(psiParameter, paramName);
 
                         // Find and replace the parameter identifier
-                        replacements.replace(psiParameter.getNameIdentifier(), paramData.getName());
+                        replacements.replace(psiParameter.getNameIdentifier(), paramName);
 
                         // Record the replacement for remapping existing Javadoc @param tags
-                        renamedParameters.put(psiParameter.getName(), paramData.getName());
+                        renamedParameters.put(psiParameter.getName(), paramName);
 
                         hadReplacements = true;
 
-                        parameterOrder.add(paramData.getName());
+                        parameterOrder.add(paramName);
                     } else {
                         parameterOrder.add(psiParameter.getName());
                     }
@@ -150,7 +162,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         } else if (element instanceof PsiReferenceExpression refExpr && refExpr.getReferenceNameElement() != null) {
             for (var entry : activeParameters.entrySet()) {
                 if (refExpr.isReferenceTo(entry.getKey())) {
-                    replacements.replace(refExpr.getReferenceNameElement(), entry.getValue().getName());
+                    replacements.replace(refExpr.getReferenceNameElement(), entry.getValue());
                     break;
                 }
             }
@@ -165,5 +177,12 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         if (enableJavadoc && !javadoc.isEmpty()) {
             JavadocHelper.enrichJavadoc(psiElement, javadoc, replacements);
         }
+    }
+
+    private static String uppercase(String str) {
+        if (str.length() == 1) {
+            return String.valueOf(Character.toUpperCase(str.charAt(0)));
+        }
+        return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
 }
