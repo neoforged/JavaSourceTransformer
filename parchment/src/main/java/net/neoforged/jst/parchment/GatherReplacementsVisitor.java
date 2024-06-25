@@ -42,7 +42,8 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
     public GatherReplacementsVisitor(NamesAndDocsDatabase namesAndDocs,
                                      boolean enableJavadoc,
-                                     @Nullable UnaryOperator<String> conflictResolver, Replacements replacements) {
+                                     @Nullable UnaryOperator<String> conflictResolver,
+                                     Replacements replacements) {
         this.namesAndDocs = namesAndDocs;
         this.enableJavadoc = enableJavadoc;
         this.conflictResolver = conflictResolver;
@@ -85,20 +86,16 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 Map<String, String> renamedParameters = new HashMap<>();
 
                 final UnaryOperator<String> namer;
-                if (conflictResolver == null) {
+                if (conflictResolver == null || psiMethod.getBody() == null) {
                     namer = UnaryOperator.identity();
                 } else {
-                    if (psiMethod.getBody() == null) {
-                        namer = conflictResolver;
-                    } else {
-                        final Set<String> localRefs = new HashSet<>();
-                        // Existing parameter names are considered reserved to avoid patched-in parameters to conflict with Parchment names
-                        for (JvmParameter parameter : psiMethod.getParameters()) {
-                            localRefs.add(parameter.getName());
-                        }
-                        new ReservedVariableNamesCollector(localRefs).visitElement(psiMethod.getBody());
-                        namer = p -> localRefs.contains(p) ? conflictResolver.apply(p) : p;
+                    final Set<String> localRefs = new HashSet<>();
+                    // Existing parameter names are considered reserved to avoid patched-in parameters to conflict with Parchment names
+                    for (JvmParameter parameter : psiMethod.getParameters()) {
+                        localRefs.add(parameter.getName());
                     }
+                    new ReservedVariableNamesCollector(localRefs).visitElement(psiMethod.getBody());
+                    namer = p -> localRefs.contains(p) ? conflictResolver.apply(p) : p;
                 }
 
                 List<String> parameterOrder = new ArrayList<>();
@@ -191,12 +188,5 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
         if (enableJavadoc && !javadoc.isEmpty()) {
             JavadocHelper.enrichJavadoc(psiElement, javadoc, replacements);
         }
-    }
-
-    private static String uppercase(String str) {
-        if (str.length() == 1) {
-            return String.valueOf(Character.toUpperCase(str.charAt(0)));
-        }
-        return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
 }

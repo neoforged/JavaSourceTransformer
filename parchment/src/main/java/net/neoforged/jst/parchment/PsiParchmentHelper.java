@@ -69,7 +69,10 @@ public class PsiParchmentHelper {
 
     public static Set<String> getAllFieldNames(PsiClass clazz) {
         var existing = clazz.getUserData(ALL_FIELD_NAMES);
-        if (existing != null) return existing;
+        if (existing != null) {
+            return existing;
+        }
+
         existing = new HashSet<>();
         for (PsiField field : clazz.getAllFields()) {
             existing.add(field.getName());

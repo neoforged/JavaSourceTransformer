@@ -11,6 +11,7 @@ import picocli.CommandLine;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.function.UnaryOperator;
 
 public class ParchmentTransformer implements SourceTransformer {
@@ -34,7 +35,7 @@ public class ParchmentTransformer implements SourceTransformer {
             }
 
             if (Character.isLetterOrDigit(conflictPrefix.charAt(conflictPrefix.length() - 1))) {
-                conflictResolver = p -> conflictPrefix + toUpperCase(p);
+                conflictResolver = p -> conflictPrefix + capitalize(p);
             } else {
                 conflictResolver = p -> conflictPrefix + p;
             }
@@ -54,9 +55,9 @@ public class ParchmentTransformer implements SourceTransformer {
         visitor.visitElement(psiFile);
     }
 
-    private static String toUpperCase(String str) {
+    private static String capitalize(String str) {
         if (str.length() == 1) {
-            return String.valueOf(Character.toUpperCase(str.charAt(0)));
+            return str.toUpperCase(Locale.ROOT);
         }
         return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
