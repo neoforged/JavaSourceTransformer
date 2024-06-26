@@ -61,6 +61,11 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                 }
 
                 apply(pendingATs.remove(new Target.ClassTarget(className)), psiClass, psiClass);
+                // We also remove any possible inner class ATs declared for that class as all class targets targeting inner classes
+                // generate a InnerClassTarget AT
+                if (psiClass.getParent() instanceof PsiClass parent) {
+                    pendingATs.remove(new Target.InnerClassTarget(ClassUtil.getJVMClassName(parent), className));
+                }
 
                 var fieldWildcard = pendingATs.remove(new Target.WildcardFieldTarget(className));
                 if (fieldWildcard != null) {
