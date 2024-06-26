@@ -50,7 +50,12 @@ public class AccessTransformersTransformer implements SourceTransformer {
     @Override
     public boolean afterRun(TransformContext context) {
         if (!pendingATs.isEmpty()) {
-            pendingATs.forEach((target, transformation) -> logger.error("Access transformer %s, targeting %s did not apply as its target doesn't exist", transformation, target));
+            pendingATs.forEach((target, transformation) -> {
+                // ClassTarget for inner classes have a corresponding InnerClassTarget which is more obvious for users
+                // so we don't log the ClassTarget as that will cause duplication
+                if (target instanceof Target.ClassTarget && target.className().contains("$")) return;
+                logger.error("Access transformer %s, targeting %s did not apply as its target doesn't exist", transformation, target);
+            });
             errored = true;
         }
 

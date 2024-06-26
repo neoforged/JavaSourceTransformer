@@ -1,0 +1,1 @@
+Access transformer PUBLIC LEAVE {atpath}:5, targeting com.example.RootClass INNERCLASS InnerDoesntExist did not apply as its target doesn't exist
