@@ -1,5 +1,6 @@
 package net.neoforged.jst.accesstransformers;
 
+import com.intellij.lang.jvm.JvmClassKind;
 import com.intellij.navigation.NavigationItem;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
@@ -9,6 +10,7 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.PsiModifierListOwner;
+import com.intellij.psi.PsiRecordComponent;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.util.ClassUtil;
 import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
@@ -60,11 +62,56 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     return;
                 }
 
-                apply(pendingATs.remove(new Target.ClassTarget(className)), psiClass, psiClass);
+                var classAt = pendingATs.remove(new Target.ClassTarget(className));
+                apply(classAt, psiClass, psiClass);
                 // We also remove any possible inner class ATs declared for that class as all class targets targeting inner classes
                 // generate a InnerClassTarget AT
                 if (psiClass.getParent() instanceof PsiClass parent) {
                     pendingATs.remove(new Target.InnerClassTarget(ClassUtil.getJVMClassName(parent), className));
+                }
+
+                if (classAt != null) {
+                    if (psiClass.isRecord()) {
+                        StringBuilder descriptor = new StringBuilder("(");
+                        for (PsiRecordComponent recordComponent : psiClass.getRecordComponents()) {
+                            descriptor.append(ClassUtil.getBinaryPresentation(recordComponent.getType()));
+                        }
+                        descriptor.append(")V");
+                        var desc = descriptor.toString();
+
+                        var implicitAT = pendingATs.get(new Target.MethodTarget(className, "<init>", desc));
+                        if (implicitAT != null) {
+                            boolean foundImplicit = false;
+                            for (var ctor : psiClass.getConstructors()) {
+                                if (ctor.getParameterList().getParametersCount() == psiClass.getRecordComponents().length) {
+                                    if (PsiHelper.getBinaryMethodSignature(ctor).equals(desc)) {
+                                        foundImplicit = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!foundImplicit) {
+                                error("Access transformer %s targeting the implicit constructor of %s is not valid. Please AT the class instead.", implicitAT, className);
+                                pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
+                            }
+                        }
+                    } else if (psiClass.getClassKind() == JvmClassKind.CLASS) {
+                        var implicitAT = pendingATs.get(new Target.MethodTarget(className, "<init>", "()V"));
+                        if (implicitAT != null) {
+                            boolean foundImplicit = false;
+                            for (var ctor : psiClass.getConstructors()) {
+                                if (ctor.getParameters().length == 0) {
+                                    foundImplicit = true;
+                                }
+                            }
+
+                            if (!foundImplicit) {
+                                error("Access transformer %s targeting the implicit constructor of %s is not valid. Please AT the class instead.", implicitAT, className);
+                                pendingATs.remove(new Target.MethodTarget(className, "<init>", "()V"));
+                            }
+                        }
+                    }
                 }
 
                 var fieldWildcard = pendingATs.remove(new Target.WildcardFieldTarget(className));
@@ -130,6 +177,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         if (containingClass.isInterface() && owner instanceof PsiMethod && !modifiers.hasModifierProperty(PsiModifier.STATIC)) {
             if (targetAcc != Transformation.Modifier.PUBLIC) {
                 error("Access transformer %s targeting %s attempted to make a non-static interface method %s. They can only be made public.", at, targetInfo, targetAcc);
+                return;
             } else {
                 for (var kw : modifiers.getChildren()) {
                     if (kw instanceof PsiKeyword && kw.getText().equals(PsiKeyword.PRIVATE)) { // Strip private, replace it with default
@@ -138,6 +186,10 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     }
                 }
             }
+        } else if (containingClass.isEnum() && owner instanceof PsiMethod mtd && mtd.isConstructor() && at.modifier().ordinal() < Transformation.Modifier.DEFAULT.ordinal()) {
+            // Enum constructors can at best be package-private, any other attempt must be prevented
+            error("Access transformer %s targeting %s attempted to make an enum constructor %s", at, targetInfo, at.modifier());
+            return;
         } else if (targetAcc == Transformation.Modifier.DEFAULT || !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
             modify(targetAcc, modifiers, Arrays.stream(modifiers.getChildren())
                     .filter(el -> el instanceof PsiKeyword)
