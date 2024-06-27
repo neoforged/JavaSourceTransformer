@@ -1,5 +1,6 @@
 package net.neoforged.jst.accesstransformers;
 
+import com.intellij.lang.jvm.JvmClassKind;
 import com.intellij.navigation.NavigationItem;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
@@ -9,8 +10,11 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.PsiModifierListOwner;
+import com.intellij.psi.PsiRecordComponent;
 import com.intellij.psi.PsiRecursiveElementVisitor;
+import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.ClassUtil;
+import com.intellij.psi.util.PsiClassUtil;
 import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
 import net.neoforged.accesstransformer.parser.Target;
 import net.neoforged.accesstransformer.parser.Transformation;
@@ -22,9 +26,12 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 class ApplyATsVisitor extends PsiRecursiveElementVisitor {
     private static final Set<String> ACCESS_MODIFIERS = Set.of(PsiModifier.PUBLIC, PsiModifier.PRIVATE, PsiModifier.PROTECTED);
@@ -33,6 +40,8 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
     public static final EnumMap<Transformation.Modifier, String> MODIFIER_TO_STRING = new EnumMap<>(
             Map.of(Transformation.Modifier.PRIVATE, PsiModifier.PRIVATE, Transformation.Modifier.PUBLIC, PsiModifier.PUBLIC, Transformation.Modifier.PROTECTED, PsiModifier.PROTECTED)
     );
+    public static final Map<String, Transformation.Modifier> STRING_TO_MODIFIER = MODIFIER_TO_STRING.entrySet()
+            .stream().collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
 
     private final AccessTransformerFiles ats;
     private final Replacements replacements;
@@ -60,12 +69,15 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     return;
                 }
 
-                apply(pendingATs.remove(new Target.ClassTarget(className)), psiClass, psiClass);
+                var classAt = pendingATs.remove(new Target.ClassTarget(className));
+                apply(classAt, psiClass, psiClass);
                 // We also remove any possible inner class ATs declared for that class as all class targets targeting inner classes
                 // generate a InnerClassTarget AT
                 if (psiClass.getParent() instanceof PsiClass parent) {
                     pendingATs.remove(new Target.InnerClassTarget(ClassUtil.getJVMClassName(parent), className));
                 }
+
+                checkImplicitConstructor(psiClass, className, classAt);
 
                 var fieldWildcard = pendingATs.remove(new Target.WildcardFieldTarget(className));
                 if (fieldWildcard != null) {
@@ -117,7 +129,13 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                 if (owner instanceof PsiClass cls) {
                     return ClassUtil.getJVMClassName(cls);
                 }
-                return ((NavigationItem) owner).getName() + " of " + ClassUtil.getJVMClassName(containingClass);
+                String memberName;
+                if (owner instanceof PsiMethod mtd && mtd.isConstructor()) {
+                    memberName = "constructor";
+                } else {
+                    memberName = ((NavigationItem) owner).getName();
+                }
+                return memberName + " of " + ClassUtil.getJVMClassName(containingClass);
             }
         };
         logger.debug("Applying AT %s to %s", at, targetInfo);
@@ -138,7 +156,10 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     }
                 }
             }
-        } else if (targetAcc == Transformation.Modifier.DEFAULT || !modifiers.hasModifierProperty(MODIFIER_TO_STRING.get(targetAcc))) {
+        } else if (containingClass.isEnum() && owner instanceof PsiMethod mtd && mtd.isConstructor() && at.modifier().ordinal() < Transformation.Modifier.DEFAULT.ordinal()) {
+            // Enum constructors can at best be package-private, any other attempt must be prevented
+            error("Access transformer %s targeting %s attempted to make an enum constructor %s", at, targetInfo, at.modifier());
+        } else if (targetAcc.ordinal() < detectModifier(modifiers, null).ordinal()) { // PUBLIC (0) < PROTECTED (1) < DEFAULT (2) < PRIVATE (3)
             modify(targetAcc, modifiers, Arrays.stream(modifiers.getChildren())
                     .filter(el -> el instanceof PsiKeyword)
                     .map(el -> (PsiKeyword) el)
@@ -211,6 +232,68 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         }
     }
 
+    /**
+     * Handle the different behavior between applying ATs to source vs. bytecode.
+     * In source, the implicit class constructor is not visible and its access level will automatically increase
+     * when we change that of the containing class, while that is not true in production, where ATs are applied
+     * to bytecode instead.
+     * It also handles additional validation for record constructors, which have special rules.
+     */
+    private void checkImplicitConstructor(PsiClass psiClass, String className, @Nullable Transformation classAt) {
+        if (psiClass.isRecord()) {
+            StringBuilder descriptor = new StringBuilder("(");
+            for (PsiRecordComponent recordComponent : psiClass.getRecordComponents()) {
+                descriptor.append(ClassUtil.getBinaryPresentation(recordComponent.getType()));
+            }
+            descriptor.append(")V");
+            var desc = descriptor.toString();
+
+            var implicitAT = pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
+            if (implicitAT != null && implicitAT.modifier() != detectModifier(psiClass.getModifierList(), classAt)) {
+                error("Access transformer %s targeting the implicit constructor of %s is not valid, as a record's constructor must have the same access level as the record class. Please AT the record too: \"%s\"", implicitAT, className,
+                        implicitAT.modifier().toString().toLowerCase(Locale.ROOT) + " " + className);
+                pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
+            } else if (classAt != null && detectModifier(psiClass.getModifierList(), null).ordinal() > classAt.modifier().ordinal() && implicitAT == null) {
+                error("Access transformer %s targeting record class %s attempts to widen its access without widening the constructor's access. You must AT the constructor too: \"%s\"", classAt, className,
+                        classAt.modifier().toString().toLowerCase(Locale.ROOT) + " " + className + " <init>" + desc);
+                pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
+            }
+        } else if (psiClass.getClassKind() == JvmClassKind.CLASS) {
+            // When widening the access of a class, we must take into consideration the fact that implicit constructors follow the access level of their owner
+            if (psiClass.getConstructors().length == 0) {
+                var constructorTarget = new Target.MethodTarget(className, "<init>", PsiHelper.getImplicitConstructorSignature(psiClass));
+                var constructorAt = pendingATs.remove(constructorTarget);
+
+                if (classAt != null && detectModifier(psiClass.getModifierList(), null).ordinal() > classAt.modifier().ordinal()) {
+                    // If we cannot find an implicit constructor, we need to inject it if the AT doesn't match the expected constructor access
+                    if (constructorAt == null || constructorAt.modifier() != classAt.modifier()) {
+                        var expectedModifier = detectModifier(psiClass.getModifierList(), constructorAt);
+                        injectConstructor(psiClass, className, expectedModifier);
+                    }
+                } else if (constructorAt != null && constructorAt.modifier().ordinal() < detectModifier(psiClass.getModifierList(), null).ordinal()) {
+                    // If we're trying to widen the access of an undeclared implicit constructor, we must inject it
+                    injectConstructor(psiClass, className, constructorAt.modifier());
+                }
+            }
+        }
+    }
+
+    private void injectConstructor(PsiClass psiClass, String className, Transformation.Modifier modifier) {
+        logger.debug("Injecting implicit constructor with access level %s into class %s", modifier, className);
+
+        // Add 4 spaces of indent to indent the constructor inside the class
+        int indent = 4;
+        // If the class is preceded by whitespace, use the last line of that whitespace as the base indent
+        if (psiClass.getPrevSibling() instanceof PsiWhiteSpace psiWhiteSpace) {
+            indent += PsiHelper.getLastLineLength(psiWhiteSpace);
+        }
+
+        final String modifierString = modifier == Transformation.Modifier.DEFAULT ? "" : (MODIFIER_TO_STRING.get(modifier) + " ");
+        // Inject the constructor after the opening brace, on a new line
+        replacements.insertAfter(Objects.requireNonNull(psiClass.getLBrace()), "\n" +
+                " ".repeat(indent) + modifierString + psiClass.getName() + "() {}");
+    }
+
     private void error(String message, Object... args) {
         logger.error(message, args);
         errored = true;
@@ -234,5 +317,18 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
 
     private static Target.MethodTarget method(String owner, PsiMethod method) {
         return new Target.MethodTarget(owner, PsiHelper.getBinaryMethodName(method), PsiHelper.getBinaryMethodSignature(method));
+    }
+
+    private static Transformation.Modifier detectModifier(PsiModifierList owner, @Nullable Transformation trans) {
+        if (trans != null) {
+            return trans.modifier();
+        }
+
+        for (String mod : ACCESS_MODIFIERS) {
+            if (owner.hasModifierProperty(mod)) {
+                return STRING_TO_MODIFIER.get(mod);
+            }
+        }
+        return Transformation.Modifier.DEFAULT;
     }
 }

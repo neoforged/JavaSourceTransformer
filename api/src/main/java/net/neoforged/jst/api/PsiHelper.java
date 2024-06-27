@@ -8,6 +8,7 @@ import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiParameterListOwner;
 import com.intellij.psi.PsiPrimitiveType;
 import com.intellij.psi.PsiTypes;
+import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.SyntaxTraverser;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
@@ -77,6 +78,20 @@ public final class PsiHelper {
                 return signature.toString();
             }
         };
+    }
+
+    public static String getImplicitConstructorSignature(PsiClass psiClass) {
+        StringBuilder signature = new StringBuilder();
+        signature.append("(");
+        // Non-Static inner class constructors have the enclosing class as their first argument
+        if (isNonStaticInnerClass(psiClass)) {
+            var parent = Objects.requireNonNull(Objects.requireNonNull(psiClass.getContainingClass()));
+            signature.append("L");
+            getBinaryClassName(parent, signature);
+            signature.append(";");
+        }
+        signature.append(")V");
+        return signature.toString();
     }
 
     public static String getBinaryMethodSignature(PsiMethod method) {
@@ -164,11 +179,13 @@ public final class PsiHelper {
     private static boolean isNonStaticInnerClassConstructor(PsiMethod method) {
         if (method.isConstructor()) {
             var containingClass = method.getContainingClass();
-            return containingClass != null
-                    && containingClass.getContainingClass() != null
-                    && !containingClass.hasModifierProperty(PsiModifier.STATIC);
+            return containingClass != null && isNonStaticInnerClass(containingClass);
         }
         return false;
+    }
+
+    private static boolean isNonStaticInnerClass(PsiClass psiClass) {
+        return psiClass.getContainingClass() != null && !psiClass.hasModifierProperty(PsiModifier.STATIC);
     }
 
     /**
@@ -213,5 +230,14 @@ public final class PsiHelper {
     public static boolean isRecordConstructor(PsiMethod psiMethod) {
         var containingClass = psiMethod.getContainingClass();
         return containingClass != null && containingClass.isRecord() && psiMethod.isConstructor();
+    }
+
+    public static int getLastLineLength(PsiWhiteSpace psiWhiteSpace) {
+        var lastNewline = psiWhiteSpace.getText().lastIndexOf('\n');
+        if (lastNewline != -1) {
+            return psiWhiteSpace.getTextLength() - lastNewline - 1;
+        } else {
+            return psiWhiteSpace.getTextLength();
+        }
     }
 }
