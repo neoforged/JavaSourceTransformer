@@ -80,6 +80,20 @@ public final class PsiHelper {
         };
     }
 
+    public static String getImplicitConstructorSignature(PsiClass psiClass) {
+        StringBuilder signature = new StringBuilder();
+        signature.append("(");
+        // Non-Static inner class constructors have the enclosing class as their first argument
+        if (isNonStaticInnerClass(psiClass)) {
+            var parent = Objects.requireNonNull(Objects.requireNonNull(psiClass.getContainingClass()));
+            signature.append("L");
+            getBinaryClassName(parent, signature);
+            signature.append(";");
+        }
+        signature.append(")V");
+        return signature.toString();
+    }
+
     public static String getBinaryMethodSignature(PsiMethod method) {
         StringBuilder signature = new StringBuilder();
         signature.append("(");
@@ -165,11 +179,13 @@ public final class PsiHelper {
     private static boolean isNonStaticInnerClassConstructor(PsiMethod method) {
         if (method.isConstructor()) {
             var containingClass = method.getContainingClass();
-            return containingClass != null
-                    && containingClass.getContainingClass() != null
-                    && !containingClass.hasModifierProperty(PsiModifier.STATIC);
+            return containingClass != null && isNonStaticInnerClass(containingClass);
         }
         return false;
+    }
+
+    private static boolean isNonStaticInnerClass(PsiClass psiClass) {
+        return psiClass.getContainingClass() != null && !psiClass.hasModifierProperty(PsiModifier.STATIC);
     }
 
     /**

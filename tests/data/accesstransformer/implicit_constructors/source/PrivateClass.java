@@ -7,4 +7,8 @@ private class PrivateClass {
     protected static class Both {
 
     }
+
+    private class Inner {
+
+    }
 }

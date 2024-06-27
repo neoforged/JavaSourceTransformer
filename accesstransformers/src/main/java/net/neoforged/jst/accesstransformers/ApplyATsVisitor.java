@@ -254,7 +254,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         } else if (psiClass.getClassKind() == JvmClassKind.CLASS) {
             // When widening the access of a class, we must take into consideration the fact that implicit constructors follow the access level of their owner
             if (psiClass.getConstructors().length == 0) {
-                var constructorTarget = new Target.MethodTarget(className, "<init>", "()V");
+                var constructorTarget = new Target.MethodTarget(className, "<init>", PsiHelper.getImplicitConstructorSignature(psiClass));
                 var constructorAt = pendingATs.remove(constructorTarget);
 
                 if (classAt != null && detectModifier(psiClass.getModifierList(), null).ordinal() > classAt.modifier().ordinal()) {
