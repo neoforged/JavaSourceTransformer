@@ -10,11 +10,11 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.PsiModifierListOwner;
-import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiRecordComponent;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.ClassUtil;
+import com.intellij.psi.util.PsiClassUtil;
 import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
 import net.neoforged.accesstransformer.parser.Target;
 import net.neoforged.accesstransformer.parser.Transformation;
@@ -77,7 +77,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     pendingATs.remove(new Target.InnerClassTarget(ClassUtil.getJVMClassName(parent), className));
                 }
 
-                checkImplicit(psiClass, className, classAt);
+                checkImplicitConstructor(psiClass, className, classAt);
 
                 var fieldWildcard = pendingATs.remove(new Target.WildcardFieldTarget(className));
                 if (fieldWildcard != null) {
@@ -232,7 +232,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         }
     }
 
-    private void checkImplicit(PsiClass psiClass, String className, @Nullable Transformation classAt) {
+    private void checkImplicitConstructor(PsiClass psiClass, String className, @Nullable Transformation classAt) {
         if (psiClass.isRecord()) {
             StringBuilder descriptor = new StringBuilder("(");
             for (PsiRecordComponent recordComponent : psiClass.getRecordComponents()) {
@@ -252,34 +252,21 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                 pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
             }
         } else if (psiClass.getClassKind() == JvmClassKind.CLASS) {
-            var target = new Target.MethodTarget(className, "<init>", "()V");
-            var implicitAT = pendingATs.remove(target);
-
-            PsiMethod implicitConstructor = null;
-            for (var ctor : psiClass.getConstructors()) {
-                if (ctor.getParameters().length == 0) {
-                    implicitConstructor = ctor;
-                    break;
-                }
-            }
-
             // When widening the access of a class, we must take into consideration the fact that implicit constructors follow the access level of their owner
-            if (classAt != null && detectModifier(psiClass.getModifierList(), null).ordinal() > classAt.modifier().ordinal()) {
-                // If we cannot find an implicit constructor, we need to inject it if the AT doesn't match the expected constructor access
-                if (implicitConstructor == null && (implicitAT == null || implicitAT.modifier() != classAt.modifier())) {
-                    var expectedModifier = detectModifier(psiClass.getModifierList(), implicitAT);
-                    injectConstructor(psiClass, className, expectedModifier);
-                    return;
-                }
-            } else if (implicitAT != null && implicitConstructor == null && implicitAT.modifier().ordinal() < detectModifier(psiClass.getModifierList(), null).ordinal()) {
-                // If we're trying to widen the access of an undeclared implicit constructor, we must inject it
-                injectConstructor(psiClass, className, implicitAT.modifier());
-                return;
-            }
+            if (psiClass.getConstructors().length == 0) {
+                var constructorTarget = new Target.MethodTarget(className, "<init>", "()V");
+                var constructorAt = pendingATs.remove(constructorTarget);
 
-            if (implicitConstructor != null) {
-                // If the constructor is declared, we'll simply apply its AT
-                apply(implicitAT, implicitConstructor, psiClass);
+                if (classAt != null && detectModifier(psiClass.getModifierList(), null).ordinal() > classAt.modifier().ordinal()) {
+                    // If we cannot find an implicit constructor, we need to inject it if the AT doesn't match the expected constructor access
+                    if (constructorAt == null || constructorAt.modifier() != classAt.modifier()) {
+                        var expectedModifier = detectModifier(psiClass.getModifierList(), constructorAt);
+                        injectConstructor(psiClass, className, expectedModifier);
+                    }
+                } else if (constructorAt != null && constructorAt.modifier().ordinal() < detectModifier(psiClass.getModifierList(), null).ordinal()) {
+                    // If we're trying to widen the access of an undeclared implicit constructor, we must inject it
+                    injectConstructor(psiClass, className, constructorAt.modifier());
+                }
             }
         }
     }
