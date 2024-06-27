@@ -232,6 +232,13 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         }
     }
 
+    /**
+     * Handle the different behavior between applying ATs to source vs. bytecode.
+     * In source, the implicit class constructor is not visible and its access level will automatically increase
+     * when we change that of the containing class, while that is not true in production, where ATs are applied
+     * to bytecode instead.
+     * It also handles additional validation for record constructors, which have special rules.
+     */
     private void checkImplicitConstructor(PsiClass psiClass, String className, @Nullable Transformation classAt) {
         if (psiClass.isRecord()) {
             StringBuilder descriptor = new StringBuilder("(");
