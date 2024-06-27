@@ -1,1 +1,1 @@
-Access transformer PUBLIC LEAVE {atpath}:5 targeting record class PrivateRecord attempts to widen its access without widening the constructor's access. You must AT the constructor too: "public PrivateRecord <init>(I)V"
+Access transformer PUBLIC LEAVE {atpath}:9 targeting record class PrivateRecord attempts to widen its access without widening the constructor's access. You must AT the constructor too: "public PrivateRecord <init>(I)V"
