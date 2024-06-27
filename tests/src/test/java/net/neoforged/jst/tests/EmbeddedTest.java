@@ -271,6 +271,16 @@ public class EmbeddedTest {
         void testMissingTarget() throws Exception {
             runATTest("missing_target");
         }
+
+        @Test
+        void testImplicitConstructors() throws Exception {
+            runATTest("implicit_constructors");
+        }
+
+        @Test
+        void testIllegal() throws Exception {
+            runATTest("illegal");
+        }
     }
 
     protected final void runATTest(String testDirName) throws Exception {

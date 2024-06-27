@@ -8,6 +8,7 @@ import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiParameterListOwner;
 import com.intellij.psi.PsiPrimitiveType;
 import com.intellij.psi.PsiTypes;
+import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.SyntaxTraverser;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
@@ -213,5 +214,14 @@ public final class PsiHelper {
     public static boolean isRecordConstructor(PsiMethod psiMethod) {
         var containingClass = psiMethod.getContainingClass();
         return containingClass != null && containingClass.isRecord() && psiMethod.isConstructor();
+    }
+
+    public static int getLastLineLength(PsiWhiteSpace psiWhiteSpace) {
+        var lastNewline = psiWhiteSpace.getText().lastIndexOf('\n');
+        if (lastNewline != -1) {
+            return psiWhiteSpace.getTextLength() - lastNewline - 1;
+        } else {
+            return psiWhiteSpace.getTextLength();
+        }
     }
 }

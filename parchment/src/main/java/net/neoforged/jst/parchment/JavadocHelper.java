@@ -7,6 +7,7 @@ import com.intellij.psi.PsiJavaDocumentedElement;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.javadoc.PsiDocToken;
+import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.api.Replacement;
 import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.Nullable;
@@ -107,7 +108,7 @@ public final class JavadocHelper {
             int indent = 0;
             // If the element is preceded by whitespace, use the last line of that whitespace as the indent
             if (psiElement.getPrevSibling() instanceof PsiWhiteSpace psiWhiteSpace) {
-                indent = JavadocHelper.getLastLineLength(psiWhiteSpace);
+                indent = PsiHelper.getLastLineLength(psiWhiteSpace);
             }
             replacements.insertBefore(
                     psiElement,
@@ -179,11 +180,11 @@ public final class JavadocHelper {
             if (child instanceof PsiDocToken token && child.getPrevSibling() instanceof PsiWhiteSpace precedingWhitespace) {
                 var type = token.getTokenType();
                 if (type == JavaDocTokenType.DOC_COMMENT_START) {
-                    indentLength = Math.max(indentLength, getLastLineLength(precedingWhitespace));
+                    indentLength = Math.max(indentLength, PsiHelper.getLastLineLength(precedingWhitespace));
 
                 } else if (type == JavaDocTokenType.DOC_COMMENT_LEADING_ASTERISKS || type == JavaDocTokenType.DOC_COMMENT_END) {
                     // Strip one space since it includes the inner-javadoc indent
-                    indentLength = Math.max(indentLength, getLastLineLength(precedingWhitespace) - 1);
+                    indentLength = Math.max(indentLength, PsiHelper.getLastLineLength(precedingWhitespace) - 1);
                 }
             }
         }
@@ -300,15 +301,6 @@ public final class JavadocHelper {
             sb.setLength(sb.length() - 1);
         }
         return sb.append('\n');
-    }
-
-    public static int getLastLineLength(PsiWhiteSpace psiWhiteSpace) {
-        var lastNewline = psiWhiteSpace.getText().lastIndexOf('\n');
-        if (lastNewline != -1) {
-            return psiWhiteSpace.getTextLength() - lastNewline - 1;
-        } else {
-            return psiWhiteSpace.getTextLength();
-        }
     }
 
     /**
