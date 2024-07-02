@@ -18,7 +18,12 @@ public class ParchmentTransformer implements SourceTransformer {
     @CommandLine.Option(names = "--parchment-mappings", required = true, description = "The location of the Parchment mappings file")
     public Path mappingsPath;
 
-    @CommandLine.Option(names = "--parchment-javadoc", description = "Whether Parchment javadocs should be applied", negatable = true)
+    @CommandLine.Option(
+            names = "--parchment-javadoc",
+            description = "Whether Parchment javadocs should be applied",
+            negatable = true,
+            fallbackValue = "true"
+    )
     public boolean enableJavadoc = true;
 
     @CommandLine.Option(names = "--parchment-conflict-prefix", description = "Apply the prefix specified if a Parchment parameter name conflicts with existing variable names")
