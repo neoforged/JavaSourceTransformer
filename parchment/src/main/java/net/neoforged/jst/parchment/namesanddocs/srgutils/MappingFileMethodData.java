@@ -20,7 +20,7 @@ public class MappingFileMethodData implements NamesAndDocsForMethod {
     }
 
     @Override
-    public NamesAndDocsForParameter getParameter(int index) {
+    public NamesAndDocsForParameter getParameter(int index, int jvmIndex) {
         var paramData = methodData.getParameter(index);
         if (paramData == null || paramData.getMapped() == null) {
             return null;

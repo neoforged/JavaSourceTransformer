@@ -19,8 +19,8 @@ class ParchmentNamesAndDocsForMethod implements NamesAndDocsForMethod {
     }
 
     @Override
-    public NamesAndDocsForParameter getParameter(int index) {
-        var paramData = methodData.getParameter((byte) index);
+    public NamesAndDocsForParameter getParameter(int index, int jvmIndex) {
+        var paramData = methodData.getParameter((byte) jvmIndex);
         return paramData != null ? new ParchmentNamesAndDocsForParameter(paramData) : null;
     }
 }

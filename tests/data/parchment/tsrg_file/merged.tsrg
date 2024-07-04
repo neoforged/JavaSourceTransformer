@@ -1,5 +1,5 @@
 tsrg2 left right
 obfuscated_c pkg/TestClass
 	obfuscated_m (Ljava/lang/String;Ljava/util/List;)V m
-		1 o p_254545_
-		2 o p_254546_
+		0 o p_254545_
+		1 o p_254546_

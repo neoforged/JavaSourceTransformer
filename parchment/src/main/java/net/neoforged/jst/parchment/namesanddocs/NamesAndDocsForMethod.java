@@ -5,5 +5,5 @@ import java.util.List;
 public interface NamesAndDocsForMethod {
     List<String> getJavadoc();
 
-    NamesAndDocsForParameter getParameter(int index);
+    NamesAndDocsForParameter getParameter(int index, int jvmIndex);
 }
