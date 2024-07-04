@@ -32,6 +32,9 @@ public class Main implements Callable<Integer> {
     @CommandLine.Option(names = "--libraries-list", description = "Specifies a file that contains a path to an archive or directory to add to the classpath on each line.")
     Path librariesList;
 
+    @CommandLine.Option(names = "--ignore-prefix", description = "Do not apply transformations to paths that start with any of these prefixes.")
+    List<String> ignoredPrefixes = new ArrayList<>();
+
     @CommandLine.Option(names = "--classpath", description = "Additional classpath entries to use. Is combined with --libraries-list.", converter = ClasspathConverter.class)
     List<Path> addToClasspath = new ArrayList<>();
 
@@ -72,6 +75,9 @@ public class Main implements Callable<Integer> {
             }
             for (Path path : addToClasspath) {
                 processor.addLibrary(path);
+            }
+            for (String ignoredPrefix : ignoredPrefixes) {
+                processor.addIgnoredPrefix(ignoredPrefix);
             }
 
             processor.setMaxQueueDepth(maxQueueDepth);
