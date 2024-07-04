@@ -29,8 +29,8 @@ It can be invoked as a standalone executable Jar-File. Java 17 is required.
 ```
 Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
            [--max-queue-depth=<maxQueueDepth>] [--out-format=<outputFormat>]
-           [--classpath=<addToClasspath>]... [--enable-parchment
-           --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc]
+           [--classpath=<addToClasspath>]... [--ignore-prefix=<ignoredPrefixes>]...
+           [--enable-parchment --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc]
            [--parchment-conflict-prefix=<conflictPrefix>]] [--enable-accesstransformers
            --access-transformer=<atFiles> [--access-transformer=<atFiles>]...
            [--access-transformer-validation=<validation>]] INPUT OUTPUT
@@ -40,6 +40,8 @@ Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
       --classpath=<addToClasspath>
                            Additional classpath entries to use. Is combined with --libraries-list.
   -h, --help               Show this help message and exit.
+      --ignore-prefix=<ignoredPrefixes>
+                           Do not transforms entry whose path start with this prefix.
       --in-format=<inputFormat>
                            Specify the format of INPUT explicitly. AUTO (the default) performs
                              auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE
