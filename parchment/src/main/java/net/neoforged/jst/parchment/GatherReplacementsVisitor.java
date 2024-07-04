@@ -104,6 +104,19 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 var parameters = psiMethod.getParameterList().getParameters();
                 var parametersLvtIndices = PsiHelper.getParameterLvtIndices(psiMethod);
                 boolean hadReplacements = false;
+
+                int parameterOffset = 0;
+                if (psiMethod.isConstructor()) {
+                    // Enums offset the parameter index by 2 since they add an int and a string param which are not visible in the source
+                    if (psiMethod.getContainingClass().isEnum()) {
+                        parameterOffset = 2;
+                    }
+                    // Non-static inner classes capture their owner as the first parameter
+                    else if (PsiHelper.isNonStaticInnerClass(psiMethod.getContainingClass())) {
+                        parameterOffset = 1;
+                    }
+                }
+
                 for (int i = 0; i < parameters.length; i++) {
                     var psiParameter = parameters[i];
                     // We cannot replace parameters with no name, sadly
@@ -115,7 +128,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     // to account for synthetic parameter not found in the source-code, we must adjust the index accordingly.
                     var jvmIndex = parametersLvtIndices[i];
 
-                    var paramData = methodData.getParameter(jvmIndex);
+                    var paramData = methodData.getParameter(parameterOffset + i, jvmIndex);
                     // Optionally replace the parameter name, but skip record constructors, since those could have
                     // implications for the field names.
                     if (paramData != null && paramData.getName() != null && !PsiHelper.isRecordConstructor(psiMethod)) {

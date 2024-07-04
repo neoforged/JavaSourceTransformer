@@ -184,7 +184,7 @@ public final class PsiHelper {
         return false;
     }
 
-    private static boolean isNonStaticInnerClass(PsiClass psiClass) {
+    public static boolean isNonStaticInnerClass(PsiClass psiClass) {
         return psiClass.getContainingClass() != null && !psiClass.hasModifierProperty(PsiModifier.STATIC);
     }
 
