@@ -41,7 +41,8 @@ Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
                            Additional classpath entries to use. Is combined with --libraries-list.
   -h, --help               Show this help message and exit.
       --ignore-prefix=<ignoredPrefixes>
-                           Do not transforms entry whose path start with this prefix.
+                           Do not apply transformations to paths that start with any of these
+                             prefixes.
       --in-format=<inputFormat>
                            Specify the format of INPUT explicitly. AUTO (the default) performs
                              auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE
