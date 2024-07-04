@@ -5,4 +5,10 @@ import java.util.*;
 public class TestClass {
     public void m(String a1, List<String> a2) {
     }
+
+    public static class Enm {
+        ;
+
+        Enm(boolean a3) {}
+    }
 }

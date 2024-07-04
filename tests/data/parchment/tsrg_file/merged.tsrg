@@ -3,3 +3,8 @@ obfuscated_c pkg/TestClass
 	obfuscated_m (Ljava/lang/String;Ljava/util/List;)V m
 		0 o p_254545_
 		1 o p_254546_
+obfuscated_e pkg/TestClass$Enm
+    <init> (Ljava/lang/String;IZ)V <init>
+        0 o p_123450_
+        1 o p_123451_
+        2 o p_123452_
