@@ -105,8 +105,17 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                 var parametersLvtIndices = PsiHelper.getParameterLvtIndices(psiMethod);
                 boolean hadReplacements = false;
 
-                // Enums offset the parameter index by 2 since they add an int and a string param which are not visible in the source
-                int parameterOffset = psiMethod.isConstructor() && psiMethod.getContainingClass().isEnum() ? 2 : 0;
+                int parameterOffset = 0;
+                if (psiMethod.isConstructor()) {
+                    // Enums offset the parameter index by 2 since they add an int and a string param which are not visible in the source
+                    if (psiMethod.getContainingClass().isEnum()) {
+                        parameterOffset = 2;
+                    }
+                    // Non-static inner classes capture their owner as the first parameter
+                    else if (PsiHelper.isNonStaticInnerClass(psiMethod.getContainingClass())) {
+                        parameterOffset = 1;
+                    }
+                }
 
                 for (int i = 0; i < parameters.length; i++) {
                     var psiParameter = parameters[i];
