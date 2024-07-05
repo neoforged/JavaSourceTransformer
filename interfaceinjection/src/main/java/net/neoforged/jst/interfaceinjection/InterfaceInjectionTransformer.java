@@ -7,25 +7,29 @@ import com.intellij.util.containers.MultiMap;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.TransformContext;
+import org.jetbrains.annotations.Nullable;
 import picocli.CommandLine;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 public class InterfaceInjectionTransformer implements SourceTransformer {
     private static final Gson GSON = new Gson();
 
-    @CommandLine.Option(names = "--interface-injection-stub-location", required = true, description = "The path to save interface stubs to")
+    @Nullable
+    @CommandLine.Option(names = "--interface-injection-stubs", description = "The path to a zip to save interface stubs in")
     public Path stubOut;
 
-    @CommandLine.Option(names = "--interface-injection-marker", description = "The name of an annotation to use as a marker for injected interfaces")
+    @Nullable
+    @CommandLine.Option(names = "--interface-injection-marker", description = "The name (binary representation) of an annotation to use as a marker for injected interfaces")
     public String annotationMarker;
 
     @CommandLine.Option(names = "--interface-injection-data", description = "The paths to read interface injection JSON files from")
-    public List<Path> paths;
+    public List<Path> paths = new ArrayList<>();
 
     private MultiMap<String, String> interfaces;
     private StubStore stubs;
@@ -60,11 +64,13 @@ public class InterfaceInjectionTransformer implements SourceTransformer {
 
     @Override
     public boolean afterRun(TransformContext context) {
-        try {
-            stubs.save(stubOut);
-        } catch (IOException e) {
-            context.logger().error("Failed to save stubs: %s", e.getMessage());
-            throw new UncheckedIOException(e);
+        if (stubOut != null) {
+            try {
+                stubs.save(stubOut);
+            } catch (IOException e) {
+                context.logger().error("Failed to save stubs: %s", e.getMessage());
+                throw new UncheckedIOException(e);
+            }
         }
 
         return true;

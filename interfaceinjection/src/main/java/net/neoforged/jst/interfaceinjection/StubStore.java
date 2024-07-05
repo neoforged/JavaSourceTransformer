@@ -4,6 +4,7 @@ import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.search.GlobalSearchScope;
 import net.neoforged.jst.api.Logger;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,6 +20,11 @@ import java.util.stream.IntStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * When injecting interfaces, we generate basic interface stubs that can be used as a separate
+ * artifact when recompiling the transformed code, to avoid putting the actual interfaces on the classpath
+ * and risking circular dependencies.
+ */
 class StubStore {
     private final Logger logger;
     private final JavaPsiFacade facade;
@@ -30,7 +36,7 @@ class StubStore {
         this.facade = facade;
     }
 
-    public String createStub(String jvm) {
+    public InterfaceInformation createStub(String jvm) {
         String generics = "";
         int typeParameterCount = 0;
 
@@ -46,14 +52,12 @@ class StubStore {
                 } else {
                     // Ignore any nested generics when counting the amount of parameters the interface has
                     typeParameterCount = generics.replaceAll("<[^>]*>", "").split(",").length;
-
-                    generics = "<" + generics + ">";
                 }
             }
             jvm = jvm.substring(0, genericsStart);
         }
 
-        return createStub(jvm, typeParameterCount) + generics;
+        return new InterfaceInformation(createStub(jvm, typeParameterCount), generics);
     }
 
     private String createStub(String jvm, int typeParameterCount) {
@@ -89,7 +93,7 @@ class StubStore {
             Files.createDirectories(path.getParent());
         }
 
-        try (var zos = new ZipOutputStream(Files.newOutputStream(path))) {
+        try (var zos = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
             for (var entry : this.stubs.entrySet()) {
                 var pkg = entry.getKey();
                 var stubs = entry.getValue();
@@ -129,6 +133,13 @@ class StubStore {
                 child.save(str -> consumer.accept("    " + str));
             }
             consumer.accept("}");
+        }
+    }
+
+    record InterfaceInformation(String interfaceDeclaration, String generics) {
+        @Override
+        public String toString() {
+            return generics.isBlank() ? interfaceDeclaration : interfaceDeclaration + "<" + generics + ">";
         }
     }
 }

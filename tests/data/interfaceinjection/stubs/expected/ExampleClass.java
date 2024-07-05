@@ -1,2 +1,2 @@
-public class ExampleClass implements com.example.InjectedInterface, com.example.II2, InjectedRootInterface {
+public class ExampleClass implements InjectedRootInterface, com.example.II2, com.example.InjectedInterface {
 }

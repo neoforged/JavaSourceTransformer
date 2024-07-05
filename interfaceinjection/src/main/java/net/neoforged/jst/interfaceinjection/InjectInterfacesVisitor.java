@@ -1,6 +1,7 @@
 package net.neoforged.jst.interfaceinjection;
 
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiRecursiveElementVisitor;
@@ -11,7 +12,10 @@ import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
@@ -22,7 +26,7 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
     @Nullable
     private final String marker;
 
-    InjectInterfacesVisitor(Replacements replacements, MultiMap<String, String> interfaces, StubStore stubs, String marker) {
+    InjectInterfacesVisitor(Replacements replacements, MultiMap<String, String> interfaces, StubStore stubs, @Nullable String marker) {
         this.replacements = replacements;
         this.interfaces = interfaces;
         this.stubs = stubs;
@@ -32,7 +36,10 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
     @Override
     public void visitElement(@NotNull PsiElement element) {
         if (element instanceof PsiClass psiClass) {
-            if (psiClass.getQualifiedName() == null) return;
+            if (psiClass.getQualifiedName() == null) {
+                return;
+            }
+
             String className = ClassUtil.getJVMClassName(psiClass);
             inject(psiClass, interfaces.get(className.replace('.', '/')));
 
@@ -49,14 +56,26 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
 
     private void inject(PsiClass psiClass, Collection<String> targets) {
         // We cannot add implements clauses to anonymous or unnamed classes
-        if (targets.isEmpty() || psiClass.getImplementsList() == null) return;
-
-        var interfaceImplementation = targets.stream()
-                .distinct().map(stubs::createStub)
-                .map(this::decorate)
-                .collect(Collectors.joining(", "));
+        if (targets.isEmpty() || psiClass.getImplementsList() == null) {
+            return;
+        }
 
         var implementsList = psiClass.isInterface() ? psiClass.getExtendsList() : psiClass.getImplementsList();
+        var implementedInterfaces = Arrays.stream(implementsList.getReferencedTypes())
+                .map(PsiClassType::resolve)
+                .filter(Objects::nonNull)
+                .map(PsiClass::getQualifiedName)
+                .collect(Collectors.toSet());
+
+        var interfaceImplementation = targets.stream()
+                .distinct()
+                .map(stubs::createStub)
+                .filter(iface -> !implementedInterfaces.contains(iface.interfaceDeclaration()))
+                .map(StubStore.InterfaceInformation::toString)
+                .map(this::decorate)
+                .sorted(Comparator.naturalOrder())
+                .collect(Collectors.joining(", "));
+
         if (implementsList.getChildren().length == 0) {
             StringBuilder text = new StringBuilder();
 

@@ -335,7 +335,7 @@ public class EmbeddedTest {
         var testDir = testDataRoot.resolve(testDirName);
         var inputPath = testDir.resolve("injectedinterfaces.json");
 
-        var args = new ArrayList<>(Arrays.asList("--enable-interface-injection", "--interface-injection-stub-location", stub.toAbsolutePath().toString(), "--interface-injection-data", inputPath.toString()));
+        var args = new ArrayList<>(Arrays.asList("--enable-interface-injection", "--interface-injection-stubs", stub.toAbsolutePath().toString(), "--interface-injection-data", inputPath.toString()));
         args.addAll(Arrays.asList(additionalArgs));
 
         runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));
