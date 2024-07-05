@@ -322,6 +322,11 @@ public class EmbeddedTest {
         void testInjectedMarker() throws Exception {
             runInterfaceInjectionTest("injected_marker", tempDir, "--interface-injection-marker", "com/markers/InjectedMarker");
         }
+
+        @Test
+        void testGenerics() throws Exception {
+            runInterfaceInjectionTest("generics", tempDir);
+        }
     }
 
     protected final void runInterfaceInjectionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {

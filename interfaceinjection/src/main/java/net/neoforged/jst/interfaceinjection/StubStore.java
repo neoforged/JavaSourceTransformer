@@ -1,5 +1,7 @@
 package net.neoforged.jst.interfaceinjection;
 
+import net.neoforged.jst.api.Logger;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -8,15 +10,49 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 class StubStore {
+    private final Logger logger;
     private final Map<String, String> jvmToFqn = new HashMap<>();
     private final Map<String, Map<String, StubInterface>> stubs = new HashMap<>();
 
+    StubStore(Logger logger) {
+        this.logger = logger;
+    }
+
     public String createStub(String jvm) {
+        String generics = "";
+        int typeParameterCount = 0;
+
+        var genericsStart = jvm.indexOf('<');
+        if (genericsStart != -1) {
+            var genericsEnd = jvm.lastIndexOf('>');
+            if (genericsEnd == -1 || genericsEnd < genericsStart) {
+                logger.error("Interface injection %s has incomplete generics declarations");
+            } else {
+                generics = jvm.substring(genericsStart + 1, genericsEnd);
+                if (generics.isBlank()) {
+                    logger.error("Interface injection %s has blank type parameters");
+                } else {
+                    // Ignore any nested generics when counting the amount of parameters the interface has
+                    typeParameterCount = generics.replaceAll("<[^>]*>", "").split(",").length;
+
+                    generics = "<" + generics + ">";
+                }
+            }
+            jvm = jvm.substring(0, genericsStart);
+        }
+
+        return createStub(jvm, typeParameterCount) + generics;
+    }
+
+    private String createStub(String jvm, int typeParameterCount) {
         var fqn = jvmToFqn.get(jvm);
         if (fqn != null) return fqn;
 
@@ -28,6 +64,7 @@ class StubStore {
         for (int i = 1; i < byInner.length; i++) {
             stub = stub.getChildren(byInner[i]);
         }
+        stub.typeParameterCount().set(typeParameterCount);
 
         fqn = packageName;
         if (!fqn.isBlank()) fqn += ".";
@@ -60,9 +97,9 @@ class StubStore {
         }
     }
 
-    public record StubInterface(String name, Map<String, StubInterface> children) {
+    public record StubInterface(String name, AtomicInteger typeParameterCount, Map<String, StubInterface> children) {
         public StubInterface(String name) {
-            this(name, new HashMap<>());
+            this(name, new AtomicInteger(), new HashMap<>());
         }
 
         public StubInterface getChildren(String name) {
@@ -70,7 +107,14 @@ class StubStore {
         }
 
         public void save(Consumer<String> consumer) {
-            consumer.accept("public interface " + name + " {");
+            var generics = "";
+            if (typeParameterCount.get() > 0) {
+                generics = "<" + IntStream.range(0, typeParameterCount.get())
+                        .mapToObj(i -> Character.toString((char)('A' + i)))
+                        .collect(Collectors.joining(", ")) + ">";
+            }
+
+            consumer.accept("public interface " + name + generics + " {");
             for (StubInterface child : children.values()) {
                 child.save(str -> consumer.accept("    " + str));
             }

@@ -34,7 +34,7 @@ public class InterfaceInjectionTransformer implements SourceTransformer {
     @Override
     public void beforeRun(TransformContext context) {
         interfaces = new MultiMap<>();
-        stubs = new StubStore();
+        stubs = new StubStore(context.logger());
 
         if (annotationMarker != null) {
             marker = annotationMarker.replace('/', '.').replace('$', '.');
