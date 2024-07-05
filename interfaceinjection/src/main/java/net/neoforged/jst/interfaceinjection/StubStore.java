@@ -1,5 +1,7 @@
 package net.neoforged.jst.interfaceinjection;
 
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.search.GlobalSearchScope;
 import net.neoforged.jst.api.Logger;
 
 import java.io.IOException;
@@ -19,11 +21,13 @@ import java.util.zip.ZipOutputStream;
 
 class StubStore {
     private final Logger logger;
+    private final JavaPsiFacade facade;
     private final Map<String, String> jvmToFqn = new HashMap<>();
     private final Map<String, Map<String, StubInterface>> stubs = new HashMap<>();
 
-    StubStore(Logger logger) {
+    StubStore(Logger logger, JavaPsiFacade facade) {
         this.logger = logger;
+        this.facade = facade;
     }
 
     public String createStub(String jvm) {
@@ -60,17 +64,23 @@ class StubStore {
         var name = splitName.remove(splitName.size() - 1);
         var packageName = String.join(".", splitName);
         var byInner = name.split("\\$");
+
+        fqn = packageName;
+        if (!fqn.isBlank()) fqn += ".";
+        fqn += String.join(".", byInner);
+        jvmToFqn.put(jvm, fqn);
+
+        // Skip creating a stub if the class is visible to JST already
+        if (facade.findClass(fqn, GlobalSearchScope.everythingScope(facade.getProject())) != null) {
+            return fqn;
+        }
+
         StubInterface stub = stubs.computeIfAbsent(packageName, $ -> new HashMap<>()).computeIfAbsent(byInner[0], $ -> new StubInterface(byInner[0]));
         for (int i = 1; i < byInner.length; i++) {
             stub = stub.getChildren(byInner[i]);
         }
         stub.typeParameterCount().set(typeParameterCount);
 
-        fqn = packageName;
-        if (!fqn.isBlank()) fqn += ".";
-        fqn += String.join(".", byInner);
-
-        jvmToFqn.put(jvm, fqn);
         return fqn;
     }
 
