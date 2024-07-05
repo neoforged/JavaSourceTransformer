@@ -1,0 +1,3 @@
+{
+  "com/MyTarget": "com/InjectedGeneric<T, MyTarget<T>>"
+}

@@ -1,0 +1,4 @@
+{
+  "net/Example": "com/example/InjectedInterface",
+  "net/Example2": "com/example/InjectedInterface"
+}

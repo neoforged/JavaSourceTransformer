@@ -19,6 +19,7 @@ import com.intellij.openapi.vfs.impl.ZipHandler;
 import com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaModuleSystem;
+import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiElementFinder;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
@@ -50,6 +51,7 @@ public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseab
     private final MockProject project;
     private final JavaCoreProjectEnvironment javaEnv;
     private final PsiManager psiManager;
+    private final JavaPsiFacade psiFacade;
 
     public IntelliJEnvironmentImpl(Logger logger) throws IOException {
         this.logger = logger;
@@ -80,11 +82,17 @@ public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseab
         LanguageLevelProjectExtension.getInstance(project).setLanguageLevel(LanguageLevel.JDK_17);
 
         psiManager = PsiManager.getInstance(project);
+        psiFacade = JavaPsiFacade.getInstance(project);
     }
 
     @Override
     public PsiManager getPsiManager() {
         return psiManager;
+    }
+
+    @Override
+    public JavaPsiFacade getPsiFacade() {
+        return psiFacade;
     }
 
     @Override
