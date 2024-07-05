@@ -44,11 +44,11 @@ class StubStore {
         if (genericsStart != -1) {
             var genericsEnd = jvm.lastIndexOf('>');
             if (genericsEnd == -1 || genericsEnd < genericsStart) {
-                logger.error("Interface injection %s has incomplete generics declarations");
+                logger.error("Interface injection %s has incomplete generics declarations", jvm);
             } else {
                 generics = jvm.substring(genericsStart + 1, genericsEnd);
                 if (generics.isBlank()) {
-                    logger.error("Interface injection %s has blank type parameters");
+                    logger.error("Interface injection %s has blank type parameters", jvm);
                 } else {
                     // Ignore any nested generics when counting the amount of parameters the interface has
                     typeParameterCount = generics.replaceAll("<[^>]*>", "").split(",").length;
