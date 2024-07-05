@@ -33,7 +33,10 @@ Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
            [--enable-parchment --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc]
            [--parchment-conflict-prefix=<conflictPrefix>]] [--enable-accesstransformers
            --access-transformer=<atFiles> [--access-transformer=<atFiles>]...
-           [--access-transformer-validation=<validation>]] INPUT OUTPUT
+           [--access-transformer-validation=<validation>]] [--enable-interface-injection
+           --interface-injection-stub-location=<stubOut>
+           [--interface-injection-marker=<annotationMarker>]
+           [--interface-injection-data=<paths>]...] INPUT OUTPUT
       INPUT                Path to a single Java-file, a source-archive or a folder containing the
                              source to transform.
       OUTPUT               Path to where the resulting source should be placed.
@@ -74,6 +77,15 @@ Plugin - accesstransformers
                            The level of validation to use for ats
       --enable-accesstransformers
                            Enable accesstransformers
+Plugin - interface-injection
+      --enable-interface-injection
+                           Enable interface-injection
+      --interface-injection-data=<paths>
+                           The paths to read interface injection JSON files from
+      --interface-injection-marker=<annotationMarker>
+                           The name of an annotation to use as a marker for injected interfaces
+      --interface-injection-stub-location=<stubOut>
+                           The path to save interface stubs to
 ```
 
 ## Licenses

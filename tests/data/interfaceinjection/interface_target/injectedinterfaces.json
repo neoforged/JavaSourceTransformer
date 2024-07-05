@@ -1,0 +1,4 @@
+{
+  "com/example/ExampleInterface": "com/example/InjectedInterface",
+  "com/example/ExampleInterfaceAdditive": "com/example/InjectedInterface"
+}

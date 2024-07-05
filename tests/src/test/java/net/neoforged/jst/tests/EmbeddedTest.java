@@ -283,6 +283,63 @@ public class EmbeddedTest {
         }
     }
 
+    @Nested
+    class InterfaceInjection {
+        @TempDir
+        Path tempDir;
+
+        @Test
+        void testSimpleInjection() throws Exception {
+            runInterfaceInjectionTest("simple_injection", tempDir);
+        }
+
+        @Test
+        void testAdditiveInjection() throws Exception {
+            runInterfaceInjectionTest("additive_injection", tempDir);
+        }
+
+        @Test
+        void testInterfaceTarget() throws Exception {
+            runInterfaceInjectionTest("interface_target", tempDir);
+        }
+
+        @Test
+        void testStubs() throws Exception {
+            runInterfaceInjectionTest("stubs", tempDir);
+        }
+
+        @Test
+        void testInnerStubs() throws Exception {
+            runInterfaceInjectionTest("inner_stubs", tempDir);
+        }
+
+        @Test
+        void testMultipleInterfaces() throws Exception {
+            runInterfaceInjectionTest("multiple_interfaces", tempDir);
+        }
+
+        @Test
+        void testInjectedMarker() throws Exception {
+            runInterfaceInjectionTest("injected_marker", tempDir, "--interface-injection-marker", "com/markers/InjectedMarker");
+        }
+    }
+
+    protected final void runInterfaceInjectionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {
+        var stub = tempDir.resolve("jst-" + testDirName + "-stub.jar");
+        testDirName = "interfaceinjection/" + testDirName;
+        var testDir = testDataRoot.resolve(testDirName);
+        var inputPath = testDir.resolve("injectedinterfaces.json");
+
+        var args = new ArrayList<>(Arrays.asList("--enable-interface-injection", "--interface-injection-stub-location", stub.toAbsolutePath().toString(), "--interface-injection-data", inputPath.toString()));
+        args.addAll(Arrays.asList(additionalArgs));
+
+        runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));
+
+        if (Files.exists(testDir.resolve("expected_stub"))) {
+            assertZipEqualsDir(stub, testDir.resolve("expected_stub"));
+        }
+    }
+
     protected final void runATTest(String testDirName) throws Exception {
         testDirName = "accesstransformer/" + testDirName;
         var atPath = testDataRoot.resolve(testDirName).resolve("accesstransformer.cfg");
@@ -319,7 +376,16 @@ public class EmbeddedTest {
         arguments.add(outputFile.toString());
         var consoleOut = consoleMapper.apply(runTool(arguments.toArray(String[]::new)));
 
-        try (var zipFile = new ZipFile(outputFile.toFile())) {
+        assertZipEqualsDir(outputFile, expectedDir);
+
+        var expectedLog = testDir.resolve("expected.log");
+        if (Files.exists(expectedLog)) {
+            assertThat(expectedLog).content().isEqualToNormalizingNewlines(consoleOut);
+        }
+    }
+
+    protected final void assertZipEqualsDir(Path zip, Path expectedDir) throws IOException {
+        try (var zipFile = new ZipFile(zip.toFile())) {
             var it = zipFile.entries().asIterator();
             while (it.hasNext()) {
                 var entry = it.next();
@@ -328,14 +394,17 @@ public class EmbeddedTest {
                 }
 
                 var actualFile = normalizeLines(new String(zipFile.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8));
-                var expectedFile = normalizeLines(Files.readString(expectedDir.resolve(entry.getName()), StandardCharsets.UTF_8));
-                assertEquals(expectedFile, actualFile);
-            }
-        }
 
-        var expectedLog = testDir.resolve("expected.log");
-        if (Files.exists(expectedLog)) {
-            assertThat(expectedLog).content().isEqualToNormalizingNewlines(consoleOut);
+                var path = expectedDir.resolve(entry.getName());
+                if (Files.exists(path)) {
+                    var expectedFile = normalizeLines(Files.readString(path, StandardCharsets.UTF_8));
+                    assertEquals(expectedFile, actualFile);
+                } else {
+                    assertThat("<file doesn't exist>")
+                            .describedAs("Expected content at " + path + " but file wasn't found")
+                            .isEqualTo(actualFile);
+                }
+            }
         }
     }
 

@@ -1,0 +1,3 @@
+{
+  "ExampleClass": ["com/example/InjectedInterface$Inner", "com/example/InjectedInterface$Inner$SubInner"]
+}
