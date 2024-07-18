@@ -1,0 +1,10 @@
+tsrg2 left right
+obfuscated_c$1 FormattedText$1
+	obfuscated_m (Ljava/util/concurrent/atomic/AtomicReference;)Ljava/util/Optional; visit
+		0 o named_inner1
+obfuscated_c$2 FormattedText$2Local
+	obfuscated_m (I)V run
+		0 o named_local1
+obfuscated_c$3 FormattedText$3
+	obfuscated_m (Ljava/util/concurrent/atomic/AtomicReference;)Ljava/util/Optional; visit
+		0 o named_inner2

@@ -7,6 +7,7 @@ import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiParameterListOwner;
 import com.intellij.psi.PsiPrimitiveType;
+import com.intellij.psi.PsiTypeParameter;
 import com.intellij.psi.PsiTypes;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.SyntaxTraverser;
@@ -157,8 +158,9 @@ public final class PsiHelper {
                 CachedValuesManager.getCachedValue(containingClass, () -> {
                     var map = new ObjectIntHashMap<PsiClass>();
                     int index = 0;
-                    for (PsiClass aClass : SyntaxTraverser.psiTraverser().withRoot(containingClass).postOrderDfsTraversal().filter(PsiClass.class)) {
-                        if (aClass.getQualifiedName() == null) {
+                    for (var aClass : SyntaxTraverser.psiTraverser().withRoot(containingClass).postOrderDfsTraversal().filter(PsiClass.class)) {
+                        // We're only interested in actual classes without qualified names (type parameters are an instance of PsiClass)
+                        if (!(aClass instanceof PsiTypeParameter) && aClass.getQualifiedName() == null) {
                             map.put(aClass, ++index);
                         }
                     }

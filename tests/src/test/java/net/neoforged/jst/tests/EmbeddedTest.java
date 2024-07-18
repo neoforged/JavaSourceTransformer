@@ -218,6 +218,11 @@ public class EmbeddedTest {
         void testTsrgMappings() throws Exception {
             runParchmentTest("tsrg_file", "merged.tsrg");
         }
+
+        @Test
+        void testAnonymousClasses() throws Exception {
+            runParchmentTest("anonymous_classes", "mappings.tsrg");
+        }
     }
 
     @Nested
