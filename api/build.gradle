@@ -1,5 +1,6 @@
 plugins {
     id 'java-library'
+    id 'net.neoforged.gradleutils'
 }
 
 group = 'net.neoforged.jst'
@@ -8,4 +9,18 @@ dependencies {
     api "com.jetbrains.intellij.java:java-psi-impl:$intellij_version"
     api "info.picocli:picocli:$picocli_version"
     compileOnly "org.jetbrains:annotations:$jetbrains_annotations_version"
+}
+
+publishing {
+    publications {
+        api(MavenPublication) {
+            artifactId = 'jst-api'
+
+            from components.java
+            gradleutils.sign(it)
+        }
+    }
+    repositories {
+        maven gradleutils.publishingMaven
+    }
 }
