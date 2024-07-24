@@ -40,6 +40,14 @@ we could implement `Supplier<T>` using `java/util/function/Supplier<T>`.
 > [!NOTE]  
 > Generics are *copied verbatim*. If you need the generics to reference a class, please use its fully qualified name (e.g. `java/util/function/Supplier<java.util.concurrent.atomic.AtomicInteger>`).
 
+### Custom transformers
+Third parties can use JST to implement their source file own transformations.  
+To do so, you can depend on the `net.neoforged.jst:jst-api` artifact, and implement the `net.neoforged.jst.api.SourceTransformerPlugin` service:
+- the `getName` method returns the unique CLI identifier of the transformer. It will generate `--[no]-enable-{name}` CLI options
+- the `createTransformer` method creates a `SourceTransformer` that will handle the replacements. The transformer will also be given to picocli to intercept custom CLI arguments
+
+To create the executable jar with your custom transformer, you should shadow the `net.neoforged.jst:jst-cli` artifact and its dependencies, and set the main class to `net.neoforged.jst.cli.Main`.
+
 ## Usage
 
 Note that this tool is not intended to be run by users directly. Rather it is integrated into

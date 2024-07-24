@@ -15,13 +15,19 @@ jar {
 
 gradleutils.setupSigning(project: project, signAllPublications: true)
 
+configurations {
+    shadow
+    shadow.extendsFrom(implementation)
+}
+
 dependencies {
     implementation project(":api")
     implementation "info.picocli:picocli:$picocli_version"
-    implementation project(":parchment")
-    implementation project(":accesstransformers")
-    implementation project(':interfaceinjection')
     implementation 'org.slf4j:slf4j-simple:2.0.13'
+
+    shadow project(":parchment")
+    shadow project(":accesstransformers")
+    shadow project(':interfaceinjection')
 
     testImplementation platform("org.junit:junit-bom:$junit_version")
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -33,6 +39,7 @@ test {
 }
 
 shadowJar {
+    configurations = [project.configurations.shadow]
     mergeServiceFiles()
 }
 
