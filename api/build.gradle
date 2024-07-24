@@ -5,6 +5,10 @@ plugins {
 
 group = 'net.neoforged.jst'
 
+gradleutils {
+    setupSigning(project: project, signAllPublications: true)
+}
+
 dependencies {
     api "com.jetbrains.intellij.java:java-psi-impl:$intellij_version"
     api "info.picocli:picocli:$picocli_version"
@@ -17,7 +21,6 @@ publishing {
             artifactId = 'jst-api'
 
             from components.java
-            gradleutils.sign(it)
         }
     }
     repositories {
