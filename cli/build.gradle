@@ -1,3 +1,5 @@
+import net.neoforged.gradleutils.PomUtilsExtension
+
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow'
@@ -14,6 +16,10 @@ jar {
 }
 
 gradleutils.setupSigning(project: project, signAllPublications: true)
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
 
 configurations {
     shadow
@@ -52,6 +58,15 @@ components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElemen
     skip()
 }
 
+tasks.register('sourcesBundleJar', Jar) {
+    it.archiveClassifier = 'sources'
+    it.archiveBaseName = 'jst-cli-bundle'
+}
+tasks.register('javadocBundleJar', Jar) {
+    it.archiveClassifier = 'javadoc'
+    it.archiveBaseName = 'jst-cli-bundle'
+}
+
 publishing {
     publications {
         // This publication only contains the unshaded jar with dependencies in the pom.xml
@@ -59,12 +74,29 @@ publishing {
             artifactId = 'jst-cli'
 
             from components.java
+            pom {
+                name = 'JST CLI'
+                description = 'The JavaSourceTransformer CLI'
+                rootProject.pomUtils.githubRepo(it, 'JavaSourceTransformer')
+                rootProject.pomUtils.neoForgedDeveloper(it)
+                rootProject.pomUtils.license(it, PomUtilsExtension.License.LGPL_v2)
+            }
         }
         // This publication only contains the shaded standalone jar
-        bundle(MavenPublication) {
+        create('bundle', MavenPublication) {
             artifactId = 'jst-cli-bundle'
 
             project.shadow.component(bundle)
+            artifact(tasks.sourcesBundleJar)
+            artifact(tasks.javadocBundleJar)
+
+            pom {
+                name = 'JST CLI bundle'
+                description = 'The JavaSourceTransformer CLI bundle, containing all builtin plugins shadowed'
+                rootProject.pomUtils.githubRepo(it, 'JavaSourceTransformer')
+                rootProject.pomUtils.neoForgedDeveloper(it)
+                rootProject.pomUtils.license(it, PomUtilsExtension.License.LGPL_v2)
+            }
         }
     }
     repositories {

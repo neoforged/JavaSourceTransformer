@@ -5,8 +5,11 @@ plugins {
 }
 
 group = "net.neoforged.jst"
-gradleutils.version {
-    branches.suffixBranch()
+gradleutils {
+    setupCentralPublishing()
+    version {
+        branches.suffixBranch()
+    }
 }
 project.version = gradleutils.version
 

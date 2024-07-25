@@ -1,5 +1,8 @@
+import net.neoforged.gradleutils.PomUtilsExtension
+
 plugins {
     id 'java-library'
+    id 'maven-publish'
     id 'net.neoforged.gradleutils'
 }
 
@@ -7,6 +10,10 @@ group = 'net.neoforged.jst'
 
 gradleutils {
     setupSigning(project: project, signAllPublications: true)
+}
+java {
+    withSourcesJar()
+    withJavadocJar()
 }
 
 dependencies {
@@ -21,6 +28,13 @@ publishing {
             artifactId = 'jst-api'
 
             from components.java
+            pom {
+                name = 'JST API'
+                description = 'The JavaSourceTransformer API'
+                rootProject.pomUtils.githubRepo(it, 'JavaSourceTransformer')
+                rootProject.pomUtils.neoForgedDeveloper(it)
+                rootProject.pomUtils.license(it, PomUtilsExtension.License.LGPL_v2)
+            }
         }
     }
     repositories {
