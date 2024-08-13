@@ -60,12 +60,12 @@ components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElemen
 
 abstract class ComponentMaker {
     @Inject
-    abstract SoftwareComponentFactory getFactory();
+    abstract SoftwareComponentFactory getFactory()
 }
 
-def componentFactory = objects.newInstance(ComponentMaker).factory
+final componentFactory = objects.newInstance(ComponentMaker).factory
 
-def shadowComponent = componentFactory.adhoc("shadow")
+final shadowComponent = componentFactory.adhoc("shadow")
 project.components.add(shadowComponent)
 
 tasks.named('shadowJar', Jar) {
@@ -76,8 +76,6 @@ tasks.named('shadowJar', Jar) {
 shadowComponent.addVariantsFromConfiguration(configurations.shadowRuntimeElements) {
     it.mapToMavenScope("runtime")
 }
-
-
 tasks.register('sourcesBundleJar', Jar) {
     it.archiveClassifier = 'sources'
     it.archiveBaseName = 'jst-cli-bundle'
