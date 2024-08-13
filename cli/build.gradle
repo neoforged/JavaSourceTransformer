@@ -22,8 +22,8 @@ java {
 }
 
 configurations {
-    shadow
-    shadow.extendsFrom(implementation)
+    include
+    include.extendsFrom(implementation)
 }
 
 dependencies {
@@ -31,9 +31,9 @@ dependencies {
     implementation "info.picocli:picocli:$picocli_version"
     implementation 'org.slf4j:slf4j-simple:2.0.13'
 
-    shadow project(":parchment")
-    shadow project(":accesstransformers")
-    shadow project(':interfaceinjection')
+    include project(":parchment")
+    include project(":accesstransformers")
+    include project(':interfaceinjection')
 
     testImplementation platform("org.junit:junit-bom:$junit_version")
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -45,7 +45,7 @@ test {
 }
 
 shadowJar {
-    configurations = [project.configurations.shadow]
+    configurations = [project.configurations.include]
     mergeServiceFiles()
 }
 
@@ -58,6 +58,24 @@ components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElemen
     skip()
 }
 
+abstract class ComponentMaker {
+    @Inject
+    abstract SoftwareComponentFactory getFactory()
+}
+
+final componentFactory = objects.newInstance(ComponentMaker).factory
+
+final shadowComponent = componentFactory.adhoc("shadow")
+project.components.add(shadowComponent)
+
+tasks.named('shadowJar', Jar) {
+    archiveClassifier = ''
+    archiveBaseName ='jst-cli-bundle'
+}
+
+shadowComponent.addVariantsFromConfiguration(configurations.shadowRuntimeElements) {
+    it.mapToMavenScope("runtime")
+}
 tasks.register('sourcesBundleJar', Jar) {
     it.archiveClassifier = 'sources'
     it.archiveBaseName = 'jst-cli-bundle'
@@ -86,7 +104,7 @@ publishing {
         create('bundle', MavenPublication) {
             artifactId = 'jst-cli-bundle'
 
-            project.shadow.component(bundle)
+            from components.shadow
             artifact(tasks.sourcesBundleJar)
             artifact(tasks.javadocBundleJar)
 
