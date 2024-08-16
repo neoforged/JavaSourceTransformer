@@ -9,5 +9,5 @@
             "matchPackagePatterns": ["^com\\.jetbrains\\.intellij"],
             "registryUrls": ["https://www.jetbrains.com/intellij-repository/releases/"]
         }
-    ],
+  ]
 }
