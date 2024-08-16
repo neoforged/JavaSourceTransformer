@@ -60,7 +60,7 @@ class StubStore {
         return new InterfaceInformation(createStub(jvm, typeParameterCount), generics);
     }
 
-    private String createStub(String jvm, int typeParameterCount) {
+    private synchronized String createStub(String jvm, int typeParameterCount) {
         var fqn = jvmToFqn.get(jvm);
         if (fqn != null) return fqn;
 
@@ -88,7 +88,7 @@ class StubStore {
         return fqn;
     }
 
-    public void save(Path path) throws IOException {
+    public synchronized void save(Path path) throws IOException {
         if (path.getParent() != null && !Files.isDirectory(path.getParent())) {
             Files.createDirectories(path.getParent());
         }
