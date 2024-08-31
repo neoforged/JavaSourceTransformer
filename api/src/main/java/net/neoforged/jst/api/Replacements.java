@@ -4,10 +4,19 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class Replacements {
-    private final List<Replacement> replacements = new ArrayList<>();
+    private final List<Replacement> replacements;
+
+    public Replacements(List<Replacement> replacements) {
+        this.replacements = replacements;
+    }
+    
+    public Replacements() {
+        this(new ArrayList<>());
+    }
 
     public boolean isEmpty() {
         return replacements.isEmpty();
@@ -81,5 +90,4 @@ public final class Replacements {
         writer.append(originalContent, replacements.get(replacements.size() - 1).range().getEndOffset(), originalContent.length());
         return writer.toString();
     }
-
 }

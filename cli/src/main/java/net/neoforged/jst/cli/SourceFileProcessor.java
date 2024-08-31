@@ -6,6 +6,7 @@ import net.neoforged.jst.api.FileEntry;
 import net.neoforged.jst.api.FileSink;
 import net.neoforged.jst.api.FileSource;
 import net.neoforged.jst.api.Logger;
+import net.neoforged.jst.api.Replacement;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.TransformContext;
@@ -19,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -63,15 +65,22 @@ class SourceFileProcessor implements AutoCloseable {
                 });
             }
         } else {
+            boolean[] status = {true};
             try (var asyncOut = new OrderedParallelWorkQueue(sink, maxQueueDepth);
                  var stream = source.streamEntries()) {
                 stream.forEach(entry -> asyncOut.submitAsync(parallelSink -> {
                     try {
-                        processEntry(entry, sourceRoot, transformers, parallelSink);
+                        var isOk = processEntry(entry, sourceRoot, transformers, parallelSink);
+                        if (!isOk) {
+                            status[0] = false;
+                        }
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
                 }));
+            }
+            if (!status[0]) {
+                return false;
             }
         }
 
@@ -83,11 +92,13 @@ class SourceFileProcessor implements AutoCloseable {
         return isOk;
     }
 
-    private void processEntry(FileEntry entry, VirtualFile sourceRoot, List<SourceTransformer> transformers, FileSink sink) throws IOException {
+    private boolean processEntry(FileEntry entry, VirtualFile sourceRoot, List<SourceTransformer> transformers, FileSink sink) throws IOException {
         if (entry.directory()) {
             sink.putDirectory(entry.relativePath());
-            return;
+            return true;
         }
+        
+        boolean[] isOk = {true};
 
         try (var in = entry.openInputStream()) {
             byte[] content = in.readAllBytes();
@@ -95,13 +106,17 @@ class SourceFileProcessor implements AutoCloseable {
 
             if (!isIgnored(entry.relativePath()) && !transformers.isEmpty() && entry.hasExtension("java")) {
                 var orgContent = content;
-                content = transformSource(sourceRoot, entry.relativePath(), transformers, content);
+                content = transformSource(sourceRoot, entry, transformers, content, isOk);
+                if (!isOk[0]) {
+                    return false;
+                }
                 if (orgContent != content) {
                     lastModified = FileTime.from(Instant.now());
                 }
             }
             sink.putFile(entry.relativePath(), lastModified, content);
         }
+        return true;
     }
 
     private boolean isIgnored(String relativePath) {
@@ -113,11 +128,12 @@ class SourceFileProcessor implements AutoCloseable {
         return false;
     }
 
-    byte[] transformSource(VirtualFile contentRoot, String path, List<SourceTransformer> transformers, byte[] originalContentBytes) {
+    private byte[] transformSource(VirtualFile contentRoot, FileEntry entry, List<SourceTransformer> transformers, byte[] originalContentBytes, boolean[] status) {
         // Instead of parsing the content we actually read from the file, we read the virtual file that is
         // visible to IntelliJ from adding the source jar. The reasoning is that IntelliJ will cache this internally
         // and reuse it when cross-referencing type-references. If we parsed from a String instead, it would parse
         // the same file twice.
+        var path = entry.relativePath();
         var sourceFile = contentRoot.findFileByRelativePath(path);
         if (sourceFile == null) {
             System.err.println("Can't transform " + path + " since IntelliJ doesn't see it in the source jar.");
@@ -130,14 +146,23 @@ class SourceFileProcessor implements AutoCloseable {
         }
 
         // Gather replaced ranges in the source-file with their replacement
-        var replacements = new Replacements();
+        List<Replacement> replacementsList = new ArrayList<>();
+        var replacements = new Replacements(replacementsList);
 
         for (var transformer : transformers) {
             transformer.visitFile(psiFile, replacements);
         }
 
+        var readOnlyReplacements = Collections.unmodifiableList(replacementsList);
+        boolean isOk = true;
+        for (var transformer : transformers) {
+            isOk = isOk && transformer.beforeReplacement(entry, readOnlyReplacements);
+        }
+        
+        status[0] = isOk;
+
         // If no replacements were made, just stream the original content into the destination file
-        if (replacements.isEmpty()) {
+        if (!isOk || replacements.isEmpty()) {
             return originalContentBytes;
         }
 
