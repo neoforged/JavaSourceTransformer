@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Reference for out-of-IDE usage of the IntelliJ Java parser is from the Kotlin compiler
@@ -65,21 +66,21 @@ class SourceFileProcessor implements AutoCloseable {
                 });
             }
         } else {
-            boolean[] status = {true};
+            AtomicBoolean status = new AtomicBoolean(true);
             try (var asyncOut = new OrderedParallelWorkQueue(sink, maxQueueDepth);
                  var stream = source.streamEntries()) {
                 stream.forEach(entry -> asyncOut.submitAsync(parallelSink -> {
                     try {
                         var isOk = processEntry(entry, sourceRoot, transformers, parallelSink);
                         if (!isOk) {
-                            status[0] = false;
+                            status.set(false);
                         }
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
                 }));
             }
-            if (!status[0]) {
+            if (!status.get()) {
                 return false;
             }
         }
