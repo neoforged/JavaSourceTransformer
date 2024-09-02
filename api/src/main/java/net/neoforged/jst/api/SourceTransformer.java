@@ -27,7 +27,7 @@ public interface SourceTransformer {
      * Can be used to react to or verify the replacements that were collected.
      * @param fileEntry the file entry being transformed
      * @param replacements the replacements that were collected; read-only
-     * @return {@code true} if the transformation should continue, {@code false} otherwise
+     * @return {@code true} if the transformation should continue, {@code false} if it should fail
      */
     default boolean beforeReplacement(FileEntry fileEntry, List<Replacement> replacements) {
         return true;
@@ -39,7 +39,7 @@ public interface SourceTransformer {
      * Can be used for post-transformation validation.
      *
      * @param context the transform context
-     * @return {@code true} if the transformation was successful, {@code false} otherwise
+     * @return {@code true} if the transformation was successful, {@code false} if it failed
      */
     default boolean afterRun(TransformContext context) {
         return true;
