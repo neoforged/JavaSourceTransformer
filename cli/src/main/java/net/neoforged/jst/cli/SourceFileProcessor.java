@@ -66,21 +66,20 @@ class SourceFileProcessor implements AutoCloseable {
                 });
             }
         } else {
-            AtomicBoolean status = new AtomicBoolean(true);
+            var success = new AtomicBoolean(true);
             try (var asyncOut = new OrderedParallelWorkQueue(sink, maxQueueDepth);
                  var stream = source.streamEntries()) {
                 stream.forEach(entry -> asyncOut.submitAsync(parallelSink -> {
                     try {
-                        var isOk = processEntry(entry, sourceRoot, transformers, parallelSink);
-                        if (!isOk) {
-                            status.set(false);
+                        if (!processEntry(entry, sourceRoot, transformers, parallelSink)) {
+                            success.set(false);
                         }
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
                 }));
             }
-            if (!status.get()) {
+            if (!success.get()) {
                 return false;
             }
         }
