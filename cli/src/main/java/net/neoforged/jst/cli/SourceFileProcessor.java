@@ -99,7 +99,7 @@ class SourceFileProcessor implements AutoCloseable {
             return true;
         }
         
-        boolean[] isOk = {true};
+        boolean[] success = {true};
 
         try (var in = entry.openInputStream()) {
             byte[] content = in.readAllBytes();
@@ -107,8 +107,8 @@ class SourceFileProcessor implements AutoCloseable {
 
             if (!isIgnored(entry.relativePath()) && !transformers.isEmpty() && entry.hasExtension("java")) {
                 var orgContent = content;
-                content = transformSource(sourceRoot, entry, transformers, content, isOk);
-                if (!isOk[0]) {
+                content = transformSource(sourceRoot, entry, transformers, content, success);
+                if (!success[0]) {
                     return false;
                 }
                 if (orgContent != content) {
@@ -129,7 +129,7 @@ class SourceFileProcessor implements AutoCloseable {
         return false;
     }
 
-    private byte[] transformSource(VirtualFile contentRoot, FileEntry entry, List<SourceTransformer> transformers, byte[] originalContentBytes, boolean[] status) {
+    private byte[] transformSource(VirtualFile contentRoot, FileEntry entry, List<SourceTransformer> transformers, byte[] originalContentBytes, boolean[] successOut) {
         // Instead of parsing the content we actually read from the file, we read the virtual file that is
         // visible to IntelliJ from adding the source jar. The reasoning is that IntelliJ will cache this internally
         // and reuse it when cross-referencing type-references. If we parsed from a String instead, it would parse
@@ -155,15 +155,15 @@ class SourceFileProcessor implements AutoCloseable {
         }
 
         var readOnlyReplacements = Collections.unmodifiableList(replacementsList);
-        boolean isOk = true;
+        boolean success = true;
         for (var transformer : transformers) {
-            isOk = isOk && transformer.beforeReplacement(entry, readOnlyReplacements);
+            success = success && transformer.beforeReplacement(entry, readOnlyReplacements);
         }
         
-        status[0] = isOk;
+        successOut[0] = success;
 
         // If no replacements were made, just stream the original content into the destination file
-        if (!isOk || replacements.isEmpty()) {
+        if (!success || replacements.isEmpty()) {
             return originalContentBytes;
         }
 
