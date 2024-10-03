@@ -72,28 +72,30 @@ public class Main implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         var logger = debug ? new Logger(System.out, System.err) : new Logger(null, System.err);
-        for (var task : tasks) {
-            try (var source = FileSources.create(task.inputPath, task.inputFormat);
-                 var processor = new SourceFileProcessor(logger)) {
+        try (var processor = new SourceFileProcessor(logger)) {
+            if (librariesList != null) {
+                processor.addLibrariesList(librariesList);
+            }
+            for (Path path : addToClasspath) {
+                processor.addLibrary(path);
+            }
 
-                if (librariesList != null) {
-                    processor.addLibrariesList(librariesList);
-                }
-                for (Path path : addToClasspath) {
-                    processor.addLibrary(path);
-                }
-                for (String ignoredPrefix : task.ignoredPrefixes) {
-                    processor.addIgnoredPrefix(ignoredPrefix);
-                }
+            processor.setMaxQueueDepth(maxQueueDepth);
 
-                processor.setMaxQueueDepth(maxQueueDepth);
+            var orderedTransformers = new ArrayList<>(enabledTransformers);
 
-                var orderedTransformers = new ArrayList<>(enabledTransformers);
 
-                try (var sink = FileSinks.create(task.outputPath, task.outputFormat, source)) {
-                    if (!processor.process(source, sink, orderedTransformers)) {
-                        logger.error("Transformation failed");
-                        return 1;
+            for (var task : tasks) {
+                try (var source = FileSources.create(task.inputPath, task.inputFormat)) {
+                    for (String ignoredPrefix : task.ignoredPrefixes) {
+                        processor.addIgnoredPrefix(ignoredPrefix);
+                    }
+                    
+                    try (var sink = FileSinks.create(task.outputPath, task.outputFormat, source)) {
+                        if (!processor.process(source, sink, orderedTransformers)) {
+                            logger.error("Transformation failed");
+                            return 1;
+                        }
                     }
                 }
             }
