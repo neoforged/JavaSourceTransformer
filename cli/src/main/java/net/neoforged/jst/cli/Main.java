@@ -17,23 +17,28 @@ import java.util.concurrent.Callable;
 
 @CommandLine.Command(name = "jst", mixinStandardHelpOptions = true, usageHelpWidth = 100)
 public class Main implements Callable<Integer> {
-    @CommandLine.Parameters(index = "0", paramLabel = "INPUT", description = "Path to a single Java-file, a source-archive or a folder containing the source to transform.")
-    Path inputPath;
+    @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
+    List<Task> tasks;
+    
+    static class Task {
+        @CommandLine.Parameters(index = "0", paramLabel = "INPUT", description = "Path to a single Java-file, a source-archive or a folder containing the source to transform.")
+        Path inputPath;
 
-    @CommandLine.Parameters(index = "1", paramLabel = "OUTPUT", description = "Path to where the resulting source should be placed.")
-    Path outputPath;
+        @CommandLine.Parameters(index = "1", paramLabel = "OUTPUT", description = "Path to where the resulting source should be placed.")
+        Path outputPath;
 
-    @CommandLine.Option(names = "--in-format", description = "Specify the format of INPUT explicitly. AUTO (the default) performs auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE for source jars or zips, and FOLDER for folders containing Java code.")
-    PathType inputFormat = PathType.AUTO;
+        @CommandLine.Option(names = "--in-format", description = "Specify the format of INPUT explicitly. AUTO (the default) performs auto-detection. Other options are SINGLE_FILE for Java files, ARCHIVE for source jars or zips, and FOLDER for folders containing Java code.")
+        PathType inputFormat = PathType.AUTO;
 
-    @CommandLine.Option(names = "--out-format", description = "Specify the format of OUTPUT explicitly. Allows the same options as --in-format.")
-    PathType outputFormat = PathType.AUTO;
+        @CommandLine.Option(names = "--out-format", description = "Specify the format of OUTPUT explicitly. Allows the same options as --in-format.")
+        PathType outputFormat = PathType.AUTO;
+
+        @CommandLine.Option(names = "--ignore-prefix", description = "Do not apply transformations to paths that start with any of these prefixes.")
+        List<String> ignoredPrefixes = new ArrayList<>();
+    }
 
     @CommandLine.Option(names = "--libraries-list", description = "Specifies a file that contains a path to an archive or directory to add to the classpath on each line.")
     Path librariesList;
-
-    @CommandLine.Option(names = "--ignore-prefix", description = "Do not apply transformations to paths that start with any of these prefixes.")
-    List<String> ignoredPrefixes = new ArrayList<>();
 
     @CommandLine.Option(names = "--classpath", description = "Additional classpath entries to use. Is combined with --libraries-list.", converter = ClasspathConverter.class)
     List<Path> addToClasspath = new ArrayList<>();
@@ -67,30 +72,31 @@ public class Main implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         var logger = debug ? new Logger(System.out, System.err) : new Logger(null, System.err);
-        try (var source = FileSources.create(inputPath, inputFormat);
-             var processor = new SourceFileProcessor(logger)) {
+        for (var task : tasks) {
+            try (var source = FileSources.create(task.inputPath, task.inputFormat);
+                 var processor = new SourceFileProcessor(logger)) {
 
-            if (librariesList != null) {
-                processor.addLibrariesList(librariesList);
-            }
-            for (Path path : addToClasspath) {
-                processor.addLibrary(path);
-            }
-            for (String ignoredPrefix : ignoredPrefixes) {
-                processor.addIgnoredPrefix(ignoredPrefix);
-            }
+                if (librariesList != null) {
+                    processor.addLibrariesList(librariesList);
+                }
+                for (Path path : addToClasspath) {
+                    processor.addLibrary(path);
+                }
+                for (String ignoredPrefix : task.ignoredPrefixes) {
+                    processor.addIgnoredPrefix(ignoredPrefix);
+                }
 
-            processor.setMaxQueueDepth(maxQueueDepth);
+                processor.setMaxQueueDepth(maxQueueDepth);
 
-            var orderedTransformers = new ArrayList<>(enabledTransformers);
+                var orderedTransformers = new ArrayList<>(enabledTransformers);
 
-            try (var sink = FileSinks.create(outputPath, outputFormat, source)) {
-                if (!processor.process(source, sink, orderedTransformers)) {
-                    logger.error("Transformation failed");
-                    return 1;
+                try (var sink = FileSinks.create(task.outputPath, task.outputFormat, source)) {
+                    if (!processor.process(source, sink, orderedTransformers)) {
+                        logger.error("Transformation failed");
+                        return 1;
+                    }
                 }
             }
-
         }
 
         return 0;
