@@ -4,10 +4,16 @@
     "github>neoforged/actions:renovate_preset"
   ],
   "packageRules": [
-        {
-            "matchDatasources": ["maven"],
-            "matchPackagePatterns": ["^com\\.jetbrains\\.intellij"],
-            "registryUrls": ["https://www.jetbrains.com/intellij-repository/releases/"]
-        }
+    {
+      "matchDatasources": [
+        "maven"
+      ],
+      "registryUrls": [
+        "https://www.jetbrains.com/intellij-repository/releases/"
+      ],
+      "matchPackageNames": [
+        "/^com\\.jetbrains\\.intellij/"
+      ]
+    }
   ]
 }
