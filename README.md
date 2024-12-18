@@ -72,6 +72,8 @@ Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
       --classpath=<addToClasspath>
                            Additional classpath entries to use. Is combined with --libraries-list.
   -h, --help               Show this help message and exit.
+      --hidden-prefix=<hiddenPrefixes>
+                           Do not process or emit paths that start with any of these prefixes.
       --ignore-prefix=<ignoredPrefixes>
                            Do not apply transformations to paths that start with any of these
                              prefixes.
