@@ -104,7 +104,8 @@ public final class ClasspathSetup {
         if (!Files.exists(libraryPath)) {
             throw new UncheckedIOException(new NoSuchFileException(libraryPath.toString()));
         }
-        ijEnv.addJarToClassPath(libraryPath);
+        if (Files.isDirectory(libraryPath)) ijEnv.addFolderToClasspath(libraryPath);
+        else ijEnv.addJarToClassPath(libraryPath);
         logger.debug("Added %s", libraryPath);
     }
 }
