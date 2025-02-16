@@ -1,5 +1,6 @@
 package net.neoforged.jst.tests;
 
+import com.intellij.util.ArrayUtil;
 import net.neoforged.jst.cli.Main;
 import org.assertj.core.util.CanIgnoreReturnValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -286,6 +287,11 @@ public class EmbeddedTest {
         void testIllegal() throws Exception {
             runATTest("illegal");
         }
+
+        @Test
+        void testFolderClasspathEntries() throws Exception {
+            runATTest("folder_classpath_entry", "--classpath=" + testDataRoot.resolve("accesstransformer/folder_classpath_entry/deps"));
+        }
     }
 
     @Nested
@@ -350,10 +356,15 @@ public class EmbeddedTest {
         }
     }
 
-    protected final void runATTest(String testDirName) throws Exception {
+    protected final void runATTest(String testDirName, final String... extraArgs) throws Exception {
         testDirName = "accesstransformer/" + testDirName;
         var atPath = testDataRoot.resolve(testDirName).resolve("accesstransformer.cfg");
-        runTest(testDirName, txt -> txt.replace(atPath.toAbsolutePath().toString(), "{atpath}"), "--enable-accesstransformers", "--access-transformer", atPath.toString());
+        runTest(testDirName, txt -> txt.replace(atPath.toAbsolutePath().toString(), "{atpath}"), ArrayUtil.mergeArrays(
+            new String[]{
+                "--enable-accesstransformers", "--access-transformer", atPath.toString()
+            },
+            extraArgs
+        ));
     }
 
     protected final void runParchmentTest(String testDirName, String mappingsFilename) throws Exception {
