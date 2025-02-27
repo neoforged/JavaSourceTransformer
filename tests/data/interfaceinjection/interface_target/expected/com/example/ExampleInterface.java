@@ -1,4 +1,6 @@
 package com.example;
 
-public interface ExampleInterface extends com.example.InjectedInterface {
+import com.example.InjectedInterface;
+
+public interface ExampleInterface extends InjectedInterface {
 }

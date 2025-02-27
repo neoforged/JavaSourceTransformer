@@ -1,2 +1,5 @@
-public class SomeClass implements @com.markers.InjectedMarker com.example.InjectedInterface {
+import com.example.InjectedInterface;
+import com.markers.InjectedMarker;
+
+public class SomeClass implements @InjectedMarker InjectedInterface {
 }

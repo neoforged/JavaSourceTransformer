@@ -8,6 +8,7 @@ import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.util.containers.MultiMap;
+import net.neoforged.jst.api.ImportHelper;
 import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -60,6 +61,8 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
             return;
         }
 
+        var imports = ImportHelper.get(psiClass.getContainingFile());
+
         var implementsList = psiClass.isInterface() ? psiClass.getExtendsList() : psiClass.getImplementsList();
         var implementedInterfaces = Arrays.stream(implementsList.getReferencedTypes())
                 .map(PsiClassType::resolve)
@@ -71,8 +74,8 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
                 .distinct()
                 .map(stubs::createStub)
                 .filter(iface -> !implementedInterfaces.contains(iface.interfaceDeclaration()))
-                .map(StubStore.InterfaceInformation::toString)
-                .map(this::decorate)
+                .map(iface -> possiblyImport(imports, iface))
+                .map(iface -> decorate(imports, iface))
                 .sorted(Comparator.naturalOrder())
                 .collect(Collectors.joining(", "));
 
@@ -94,10 +97,15 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
         }
     }
 
-    private String decorate(String iface) {
+    private String possiblyImport(@Nullable ImportHelper helper, StubStore.InterfaceInformation info) {
+        var interfaceName = helper == null ? info.interfaceDeclaration() : helper.importClass(info.interfaceDeclaration());
+        return info.generics().isBlank() ? interfaceName : (interfaceName + "<" + info.generics() + ">");
+    }
+
+    private String decorate(@Nullable ImportHelper helper, String iface) {
         if (marker == null) {
             return iface;
         }
-        return "@" + marker + " " + iface;
+        return "@" + (helper == null ? marker : helper.importClass(marker)) + " " + iface;
     }
 }

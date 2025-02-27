@@ -1,4 +1,6 @@
 package com.example;
 
-public interface ExampleInterfaceAdditive extends Runnable, com.example.InjectedInterface {
+import com.example.InjectedInterface;
+
+public interface ExampleInterfaceAdditive extends Runnable, InjectedInterface {
 }

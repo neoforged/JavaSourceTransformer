@@ -6,6 +6,7 @@ import net.neoforged.jst.api.FileEntry;
 import net.neoforged.jst.api.FileSink;
 import net.neoforged.jst.api.FileSource;
 import net.neoforged.jst.api.Logger;
+import net.neoforged.jst.api.PostProcessReplacer;
 import net.neoforged.jst.api.Replacement;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
@@ -151,6 +152,10 @@ class SourceFileProcessor implements AutoCloseable {
 
         for (var transformer : transformers) {
             transformer.visitFile(psiFile, replacements);
+        }
+
+        for (PostProcessReplacer rep : PostProcessReplacer.getReplacers(psiFile).values()) {
+            rep.process(replacements);
         }
 
         var readOnlyReplacements = Collections.unmodifiableList(replacementsList);

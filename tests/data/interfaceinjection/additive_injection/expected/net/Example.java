@@ -1,4 +1,6 @@
 package net;
 
-public class Example implements Runnable, com.example.InjectedInterface {
+import com.example.InjectedInterface;
+
+public class Example implements Runnable, InjectedInterface {
 }
