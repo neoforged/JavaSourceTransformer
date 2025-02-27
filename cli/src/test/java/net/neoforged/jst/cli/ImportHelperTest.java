@@ -106,6 +106,7 @@ class MyClass {
                         package java.lang.annotation;
                                                 
                         import java.util.*;
+                        
                         import a.b.c.Thing;
                         import com.hello.world.HelloWorld;
                                                 
