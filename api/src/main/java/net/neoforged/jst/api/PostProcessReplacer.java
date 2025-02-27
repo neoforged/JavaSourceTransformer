@@ -5,8 +5,8 @@ import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.UnmodifiableView;
 
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
@@ -29,7 +29,7 @@ public interface PostProcessReplacer {
     static <T extends PostProcessReplacer> T getOrCreateReplacer(PsiFile file, Class<T> type, Function<PsiFile, T> creator) {
         var rep = file.getUserData(REPLACERS);
         if (rep == null) {
-            rep = new ConcurrentHashMap<>();
+            rep = new IdentityHashMap<>();
             file.putUserData(REPLACERS, rep);
         }
         //noinspection unchecked

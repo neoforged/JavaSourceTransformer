@@ -99,7 +99,7 @@ public class ImportHelper implements PostProcessReplacer {
      * Attempts to import the given fully qualified class name, returning a reference to it which is either
      * its short name (if an import is successful) or the qualified name if not.
      */
-    public synchronized String importClass(String cls) {
+    public String importClass(String cls) {
         var clsByDot = cls.split("\\.");
         // We do not try to import classes in the default package or classes already imported
         if (clsByDot.length == 1 || successfulImports.contains(cls)) return clsByDot[clsByDot.length - 1];
