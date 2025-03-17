@@ -1,0 +1,11 @@
+unpick v3
+
+scoped class com.example.Example const int
+    472 = com.example.Example.V1
+    84 = com.example.Example.V2
+
+scoped method com.Outsider anotherExecute ()V const int
+    12 = com.Outsider.DIFFERENT_CONSTANT
+
+scoped package com.example const int
+    4 = com.example.Example.FOUR

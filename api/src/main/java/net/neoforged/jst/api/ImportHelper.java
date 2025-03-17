@@ -101,6 +101,8 @@ public class ImportHelper implements PostProcessReplacer {
      */
     public String importClass(String cls) {
         var clsByDot = cls.split("\\.");
+        if (clsByDot.length == 3 && Objects.equals(clsByDot[0], "java") && Objects.equals(clsByDot[1], "lang")) return clsByDot[2]; // Special case - java.lang classes do not need to be imported
+
         // We do not try to import classes in the default package or classes already imported
         if (clsByDot.length == 1 || successfulImports.contains(cls)) return clsByDot[clsByDot.length - 1];
         var name = clsByDot[clsByDot.length - 1];

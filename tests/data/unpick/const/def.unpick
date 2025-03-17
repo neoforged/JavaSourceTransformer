@@ -1,0 +1,15 @@
+unpick v3
+
+const String
+    "1.21.4" = com.example.Constants.VERSION
+
+const strict float
+    3.1415927 = java.lang.Math.PI
+    1.0471976 = java.lang.Math.PI / 3
+
+const float
+    2.5 = com.example.Constants.FLOAT_CT
+
+const long
+    34 = com.example.Constants.LONG_VAL
+    70 = (com.example.Constants.LONG_VAL + 1) * 2
