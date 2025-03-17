@@ -3,14 +3,17 @@ package net.neoforged.jst.unpick;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.PsiAssignmentExpression;
+import com.intellij.psi.PsiCallExpression;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaToken;
+import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiLocalVariable;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiMethodCallExpression;
+import com.intellij.psi.PsiPrefixExpression;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
 import net.earthcomputer.unpickv3parser.tree.GroupFormat;
@@ -26,6 +29,7 @@ import net.earthcomputer.unpickv3parser.tree.expr.LiteralExpression;
 import net.earthcomputer.unpickv3parser.tree.expr.ParenExpression;
 import net.earthcomputer.unpickv3parser.tree.expr.UnaryExpression;
 import net.neoforged.jst.api.ImportHelper;
+import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -87,37 +91,10 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             this.fieldContext = oldCtx;
             return;
         } else if (element instanceof PsiJavaToken tok) {
-            if (Boolean.TRUE.equals(tok.getUserData(UNPICK_WAS_REPLACED))) return;
-
-            if (tok.getTokenType() == JavaTokenType.STRING_LITERAL) {
-                var val = tok.getText().substring(1); // Remove starting "
-                final var finalVal = val.substring(0, val.length() - 1); // Remove leading "
-                forInScope(group -> {
-                    var ct = group.constants().get(finalVal);
-                    if (ct != null && checkNotRecursive(ct)) {
-                        replacements.replace(element, write(ct));
-                        tok.putUserData(UNPICK_WAS_REPLACED, true);
-                        return true;
-                    }
-                    return false;
-                });
-            } else if (tok.getTokenType() == JavaTokenType.INTEGER_LITERAL) {
-                var val = Integer.parseInt(tok.getText());
-                replaceLiteral(tok, val, IntegerType.INT);
-            } else if (tok.getTokenType() == JavaTokenType.LONG_LITERAL) {
-                var val = Long.parseLong(removeSuffix(tok.getText(), "l"));
-                replaceLiteral(tok, val, IntegerType.LONG);
-            } else if (tok.getTokenType() == JavaTokenType.DOUBLE_LITERAL) {
-                var val = Double.parseDouble(removeSuffix(tok.getText(), "d"));
-                replaceLiteral(tok, val, IntegerType.DOUBLE);
-            } else if (tok.getTokenType() == JavaTokenType.FLOAT_LITERAL) {
-                var val = Float.parseFloat(removeSuffix(tok.getText(), "f"));
-                replaceLiteral(tok, val, IntegerType.FLOAT);
-            }
-
+            visitToken(tok);
             return;
         } else if (element instanceof PsiMethodCallExpression call) {
-            var ref = call.getMethodExpression().resolve();
+            PsiElement ref = PsiHelper.resolve(call.getMethodExpression());
             if (ref instanceof PsiMethod met) {
                 var oldMet = calledMethod;
                 calledMethod = met;
@@ -130,31 +107,31 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                     // TODO - we might want to rethink this, right now we rewalk everything with new context,
                     // but we could instead collect the variables from the start
                     if (call.getArgumentList().getExpressions()[i] instanceof PsiReferenceExpression refEx) {
-                        var resolved = refEx.resolve();
-                        if (resolved instanceof PsiLocalVariable localVar && methodContext.getBody() != null) {
+                        PsiElement resolved = PsiHelper.resolve(refEx);
+                        if (resolved instanceof PsiLocalVariable localVar && methodContext != null && methodContext.getBody() != null) {
                             if (localVar.getInitializer() != null) {
-                                super.visitElement(localVar.getInitializer());
+                                localVar.getInitializer().accept(limitedDirectVisitor());
                             }
 
-                            methodContext.getBody().acceptChildren(new PsiRecursiveElementVisitor() {
+                            new PsiRecursiveElementVisitor() {
                                 @Override
                                 public void visitElement(@NotNull PsiElement element) {
-                                    if (element instanceof PsiAssignmentExpression as && as.getOperationSign().getTokenType() == JavaTokenType.EQ) {
-                                        if (as.getLExpression() instanceof PsiReferenceExpression ref && ref.resolve() == localVar && as.getRExpression() != null) {
-                                            UnpickVisitor.this.visitElement(as.getRExpression());
+                                    if (element instanceof PsiAssignmentExpression as) {
+                                        if (as.getOperationSign().getTokenType() == JavaTokenType.EQ && as.getLExpression() instanceof PsiReferenceExpression ref && PsiHelper.resolve(ref) == localVar && as.getRExpression() != null) {
+                                            as.getRExpression().accept(limitedDirectVisitor());
                                         }
                                         return;
                                     }
                                     super.visitElement(element);
                                 }
-                            });
+                            }.visitElement(methodContext.getBody());
                             continue;
                         }
                     }
 
                     // TODO - we need to handle return unpicks
 
-                    super.visitElement(call.getArgumentList().getExpressions()[i]);
+                    this.visitElement(call.getArgumentList().getExpressions()[i]);
 
                     currentParamIndex = oldIndex;
                 }
@@ -162,18 +139,83 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             }
             return;
         }
-        super.visitElement(element);
+
+        element.acceptChildren(this);
     }
 
-    private boolean replaceLiteral(PsiElement element, Number number, IntegerType type) {
-        return forInScope(group -> {
-            if (group.type() == GroupType.CONST) {
-                var ct = group.constants().get(number);
+    private PsiRecursiveElementVisitor limitedDirectVisitor() {
+        return new PsiRecursiveElementVisitor() {
+            @Override
+            public void visitElement(@NotNull PsiElement element) {
+                if (element instanceof PsiCallExpression) {
+                    return; // We do not want to try to further replace constants inside method calls, that's why we're limited to direct elements
+                }
+                if (element instanceof PsiJavaToken tok) {
+                    visitToken(tok);
+                    return;
+                }
+                super.visitElement(element);
+            }
+        };
+    }
+
+    private void visitToken(PsiJavaToken tok) {
+        if (Boolean.TRUE.equals(tok.getUserData(UNPICK_WAS_REPLACED))) return;
+
+        if (tok.getTokenType() == JavaTokenType.STRING_LITERAL) {
+            var val = tok.getText().substring(1); // Remove starting "
+            final var finalVal = val.substring(0, val.length() - 1); // Remove leading "
+            forInScope(group -> {
+                var ct = group.constants().get(finalVal);
                 if (ct != null && checkNotRecursive(ct)) {
-                    replacements.replace(element, write(ct));
-                    element.putUserData(UNPICK_WAS_REPLACED, true);
+                    replacements.replace(tok, write(ct));
+                    tok.putUserData(UNPICK_WAS_REPLACED, true);
                     return true;
                 }
+                return false;
+            });
+        } else if (tok.getTokenType() == JavaTokenType.INTEGER_LITERAL) {
+            int val;
+            if (tok.getText().toLowerCase(Locale.ROOT).startsWith("0x")) {
+                val = Integer.parseUnsignedInt(tok.getText().substring(2), 16);
+            } else if (tok.getText().toLowerCase(Locale.ROOT).startsWith("0b")) {
+                val = Integer.parseUnsignedInt(tok.getText().substring(2), 2);
+            } else {
+                val = Integer.parseUnsignedInt(tok.getText());
+            }
+            if (isUnaryMinus(tok)) val = -val;
+            replaceLiteral(tok, val, IntegerType.INT);
+        } else if (tok.getTokenType() == JavaTokenType.LONG_LITERAL) {
+            var val = Long.parseLong(removeSuffix(tok.getText(), "l"));
+            if (isUnaryMinus(tok)) val = -val;
+            replaceLiteral(tok, val, IntegerType.LONG);
+        } else if (tok.getTokenType() == JavaTokenType.DOUBLE_LITERAL) {
+            var val = Double.parseDouble(removeSuffix(tok.getText(), "d"));
+            if (isUnaryMinus(tok)) val = -val;
+            replaceLiteral(tok, val, IntegerType.DOUBLE);
+        } else if (tok.getTokenType() == JavaTokenType.FLOAT_LITERAL) {
+            var val = Float.parseFloat(removeSuffix(tok.getText(), "f"));
+            if (isUnaryMinus(tok)) val = -val;
+            replaceLiteral(tok, val, IntegerType.FLOAT);
+        }
+    }
+
+    private void replaceLiteral(PsiJavaToken element, Number number, IntegerType type) {
+        replaceLiteral(element, number, type, false);
+    }
+
+    private boolean replaceLiteral(PsiJavaToken element, Number number, IntegerType type, boolean denyStrict) {
+        return forInScope(group -> {
+            // If we need to deny strict conversion (so if this is a conversion) we shall do so
+            if (group.strict() && denyStrict) return false;
+
+            // We'll try a direct constant first, even if it's a flag
+            var ct = group.constants().get(number);
+            if (ct != null && checkNotRecursive(ct)) {
+                replacements.replace(element, write(ct));
+                element.putUserData(UNPICK_WAS_REPLACED, true);
+                replaceMinus(element);
+                return true;
             }
 
             if (group.type() == GroupType.FLAG && type.supportsFlag) {
@@ -181,12 +223,14 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 if (flag != null) {
                     replacements.replace(element, flag);
                     element.putUserData(UNPICK_WAS_REPLACED, true);
+                    replaceMinus(element);
                     return true;
                 }
             }
 
             if (group.format() != null) {
                 replacements.replace(element, formatAs(number, group.format()));
+                replaceMinus(element);
                 element.putUserData(UNPICK_WAS_REPLACED, true);
                 return true;
             }
@@ -194,7 +238,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             for (IntegerType from : type.widenFrom) {
                 var lower = from.cast(number);
                 if (lower.doubleValue() == number.doubleValue()) {
-                    if (replaceLiteral(element, lower, from)) {
+                    if (replaceLiteral(element, lower, from, true)) {
                         return true;
                     }
                 }
@@ -202,6 +246,16 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
             return false;
         });
+    }
+
+    private boolean isUnaryMinus(PsiJavaToken tok) {
+        return tok.getParent() instanceof PsiLiteralExpression lit && lit.getParent() instanceof PsiPrefixExpression ex && ex.getOperationTokenType() == JavaTokenType.MINUS;
+    }
+
+    private void replaceMinus(PsiJavaToken tok) {
+        if (tok.getParent() instanceof PsiLiteralExpression lit && lit.getParent() instanceof PsiPrefixExpression ex && ex.getOperationTokenType() == JavaTokenType.MINUS) {
+            replacements.remove(ex.getOperationSign());
+        }
     }
 
     private boolean checkNotRecursive(Expression expression) {
@@ -315,8 +369,8 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             case HEX -> {
                 if (value instanceof Integer) yield "0x" + Integer.toHexString(value.intValue()).toUpperCase(Locale.ROOT);
                 else if (value instanceof Long) yield "0x" + Long.toHexString(value.longValue()).toUpperCase(Locale.ROOT) + "l";
-                else if (value instanceof Double) yield Double.toHexString(value.longValue()) + "d";
-                else if (value instanceof Float) yield Float.toHexString(value.longValue()) + "f";
+                else if (value instanceof Double) yield Double.toHexString(value.doubleValue()) + "d";
+                else if (value instanceof Float) yield Float.toHexString(value.floatValue()) + "f";
                 yield value.toString();
             }
             case OCTAL -> {

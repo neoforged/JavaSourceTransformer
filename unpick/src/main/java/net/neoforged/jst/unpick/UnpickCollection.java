@@ -2,6 +2,7 @@ package net.neoforged.jst.unpick;
 
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.search.GlobalSearchScope;
@@ -44,6 +45,11 @@ public class UnpickCollection {
 
     private final Map<PsiMethod, List<Group>> methodScopes;
 
+    // This list only exists to keep the base elements in memory and prevent them from being GC'd and therefore losing their user data
+    // JavaPsiFacade#findClass uses a soft key and soft value map
+    @SuppressWarnings({"FieldCanBeLocal", "MismatchedQueryAndUpdateOfCollection"})
+    private final List<PsiElement> baseElements;
+
     public UnpickCollection(TransformContext context, Map<TypedKey, GroupDefinition> groups, List<TargetField> fields, List<TargetMethod> methods) {
         this.groups = new HashMap<>(groups.size());
         groups.forEach((k, v) -> this.groups.put(k.name(), Group.create(v)));
@@ -59,6 +65,7 @@ public class UnpickCollection {
         byClass = new MultiMap<>();
 
         methodScopes = new IdentityHashMap<>();
+        baseElements = new ArrayList<>();
 
         groups.forEach((s, def) -> {
             var gr = Group.create(def);
@@ -87,6 +94,7 @@ public class UnpickCollection {
             var fld = cls.findFieldByName(field.fieldName, true);
             if (fld != null) {
                 fld.putUserData(UNPICK_FIELD_TARGET, field);
+                baseElements.add(fld);
             }
         }
 
@@ -99,6 +107,7 @@ public class UnpickCollection {
             for (PsiMethod clsMethod : cls.getMethods()) {
                 if (clsMethod.getName().equals(method.methodName) && PsiHelper.getBinaryMethodSignature(clsMethod).equals(method.methodDesc)) {
                     clsMethod.putUserData(UNPICK_DEFINITION, Optional.of(method));
+                    baseElements.add(clsMethod);
                 }
             }
         }

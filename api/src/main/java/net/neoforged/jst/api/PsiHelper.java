@@ -2,11 +2,14 @@ package net.neoforged.jst.api;
 
 import com.intellij.lang.jvm.types.JvmPrimitiveTypeKind;
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiParameterListOwner;
 import com.intellij.psi.PsiPrimitiveType;
+import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiTypeParameter;
 import com.intellij.psi.PsiTypes;
 import com.intellij.psi.PsiWhiteSpace;
@@ -17,6 +20,7 @@ import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.containers.ObjectIntHashMap;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -240,6 +244,15 @@ public final class PsiHelper {
             return psiWhiteSpace.getTextLength() - lastNewline - 1;
         } else {
             return psiWhiteSpace.getTextLength();
+        }
+    }
+
+    @Nullable
+    public static PsiElement resolve(PsiReferenceExpression expression) {
+        try {
+            return expression.resolve();
+        } catch (Exception ignored) {
+            return null;
         }
     }
 }
