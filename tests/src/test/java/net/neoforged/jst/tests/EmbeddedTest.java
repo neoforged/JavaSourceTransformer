@@ -224,6 +224,11 @@ public class EmbeddedTest {
         void testAnonymousClasses() throws Exception {
             runParchmentTest("anonymous_classes", "mappings.tsrg");
         }
+
+        @Test
+        void testConflicts() throws Exception {
+            runParchmentTest("conflicts", "mappings.tsrg", "--parchment-conflict-prefix=p_");
+        }
     }
 
     @Nested
@@ -367,9 +372,11 @@ public class EmbeddedTest {
         ));
     }
 
-    protected final void runParchmentTest(String testDirName, String mappingsFilename) throws Exception {
+    protected final void runParchmentTest(String testDirName, String mappingsFilename, String... extraArgs) throws Exception {
         testDirName = "parchment/" + testDirName;
-        runTest(testDirName, UnaryOperator.identity(), "--enable-parchment", "--parchment-mappings", testDataRoot.resolve(testDirName).resolve(mappingsFilename).toString());
+        var args = new ArrayList<>(Arrays.asList("--enable-parchment", "--parchment-mappings", testDataRoot.resolve(testDirName).resolve(mappingsFilename).toString()));
+        args.addAll(Arrays.asList(extraArgs));
+        runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));
     }
 
     protected final void runTest(String testDirName, UnaryOperator<String> consoleMapper, String... args) throws Exception {

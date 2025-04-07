@@ -1,0 +1,9 @@
+tsrg2 left right
+obfuscated_c com/example/Example
+	obfuscated_m (Ljava/lang/String;)V m
+		0 o in
+		1 o in
+obfuscated_c$nested com/example/Example$1Nested
+	obfuscated_m (Ljava/lang/String;)V m
+		0 o in
+		1 o out
