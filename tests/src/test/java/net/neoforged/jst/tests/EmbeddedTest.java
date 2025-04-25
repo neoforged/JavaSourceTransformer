@@ -297,6 +297,29 @@ public class EmbeddedTest {
         void testFolderClasspathEntries() throws Exception {
             runATTest("folder_classpath_entry", "--classpath=" + testDataRoot.resolve("accesstransformer/folder_classpath_entry/deps"));
         }
+
+        @Test
+        void testPartialValidation() throws Exception {
+            var testDirName = "accesstransformer/partially_invalid";
+            var checkedAtPath = testDataRoot.resolve(testDirName).resolve("accesstransformer-checked.cfg");
+            var uncheckedAtPath = testDataRoot.resolve(testDirName).resolve("accesstransformer-unchecked.cfg");
+            runTest(testDirName, txt -> txt,
+                    "--enable-accesstransformers",
+                    "--access-transformer", checkedAtPath.toString(),
+                    "--access-transformer-no-validation", uncheckedAtPath.toString(),
+                    "--access-transformer-validation=error"
+            );
+
+            // Swapping which file is validated should throw:
+            assertThrows(RuntimeException.class, () -> {
+                runTest(testDirName, txt -> txt,
+                        "--enable-accesstransformers",
+                        "--access-transformer", uncheckedAtPath.toString(),
+                        "--access-transformer-no-validation", checkedAtPath.toString(),
+                        "--access-transformer-validation=error"
+                );
+            });
+        }
     }
 
     @Nested
