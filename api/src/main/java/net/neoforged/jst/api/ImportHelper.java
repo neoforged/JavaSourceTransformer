@@ -25,14 +25,12 @@ import java.util.stream.Collectors;
  */
 public class ImportHelper implements PostProcessReplacer {
     private final PsiJavaFile psiFile;
-    private final Map<String, String> importedNames;
+    private final Map<String, String> importedNames = new HashMap<>();
 
     private final Set<String> successfulImports = new HashSet<>();
 
     public ImportHelper(PsiJavaFile psiFile) {
         this.psiFile = psiFile;
-
-        this.importedNames = new HashMap<>();
 
         if (psiFile.getPackageStatement() != null) {
             var resolved = psiFile.getPackageStatement().getPackageReference().resolve();
@@ -102,7 +100,14 @@ public class ImportHelper implements PostProcessReplacer {
     public String importClass(String cls) {
         var clsByDot = cls.split("\\.");
         // We do not try to import classes in the default package or classes already imported
-        if (clsByDot.length == 1 || successfulImports.contains(cls)) return clsByDot[clsByDot.length - 1];
+        if (clsByDot.length == 1 || successfulImports.contains(cls)) {
+            return clsByDot[clsByDot.length - 1];
+        }
+        // We also do not want to import classes under java.lang.*
+        else if (clsByDot.length == 3 && clsByDot[0].equals("java") && clsByDot[1].equals("lang")) {
+            return clsByDot[2];
+        }
+
         var name = clsByDot[clsByDot.length - 1];
 
         if (Objects.equals(importedNames.get(name), cls)) {
