@@ -30,6 +30,7 @@ dependencies {
     implementation project(":api")
     implementation "info.picocli:picocli:$picocli_version"
     implementation 'org.slf4j:slf4j-simple:2.0.13'
+    implementation "com.google.code.gson:gson:${project.gson_version}"
 
     include project(":parchment")
     include project(":accesstransformers")

@@ -1,6 +1,8 @@
 package net.neoforged.jst.tests;
 
 import com.intellij.util.ArrayUtil;
+import net.neoforged.jst.api.ProblemLocation;
+import net.neoforged.jst.cli.FileProblemReporter;
 import net.neoforged.jst.cli.Main;
 import org.assertj.core.util.CanIgnoreReturnValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -365,10 +367,10 @@ public class EmbeddedTest {
         testDirName = "accesstransformer/" + testDirName;
         var atPath = testDataRoot.resolve(testDirName).resolve("accesstransformer.cfg");
         runTest(testDirName, txt -> txt.replace(atPath.toAbsolutePath().toString(), "{atpath}"), ArrayUtil.mergeArrays(
-            new String[]{
-                "--enable-accesstransformers", "--access-transformer", atPath.toString()
-            },
-            extraArgs
+                new String[]{
+                        "--enable-accesstransformers", "--access-transformer", atPath.toString()
+                },
+                extraArgs
         ));
     }
 
@@ -395,10 +397,19 @@ public class EmbeddedTest {
         var librariesFile = tempDir.resolve("libraries.txt");
         Files.write(librariesFile, List.of("-e=" + junitJarPath));
 
+        var reportFile = tempDir.resolve("report.json");
+        var expectedReport = testDir.resolve("expected_report.json");
+
         final List<String> arguments = new ArrayList<>(Arrays.asList(
                 "--max-queue-depth=1",
                 "--libraries-list",
                 librariesFile.toString()));
+
+        if (Files.exists(expectedReport)) {
+            arguments.add("--problems-report");
+            arguments.add(reportFile.toString());
+        }
+
         arguments.addAll(Arrays.asList(args));
         arguments.add(inputFile.toString());
         arguments.add(outputFile.toString());
@@ -409,6 +420,27 @@ public class EmbeddedTest {
         var expectedLog = testDir.resolve("expected.log");
         if (Files.exists(expectedLog)) {
             assertThat(expectedLog).content().isEqualToNormalizingNewlines(consoleOut);
+        }
+
+        if (Files.exists(expectedReport)) {
+            var expectedRecords = FileProblemReporter.loadRecords(expectedReport);
+            var actualRecords = FileProblemReporter.loadRecords(reportFile);
+
+            // Relativize the paths to make them comparable to the reference data.
+            actualRecords = actualRecords.stream().map(record -> new FileProblemReporter.ProblemRecord(
+                    record.problemId(),
+                    record.severity(),
+                    new ProblemLocation(
+                            testDir.relativize(record.location().file()),
+                            record.location().line(),
+                            record.location().column(),
+                            record.location().offset(),
+                            record.location().length()
+                    ),
+                    record.message()
+            )).toList();
+
+            assertThat(actualRecords).containsExactlyInAnyOrder(expectedRecords.toArray(FileProblemReporter.ProblemRecord[]::new));
         }
     }
 

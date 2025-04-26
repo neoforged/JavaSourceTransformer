@@ -1,6 +1,7 @@
 package net.neoforged.jst.cli;
 
 import net.neoforged.jst.api.Logger;
+import net.neoforged.jst.api.ProblemReporter;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.SourceTransformerPlugin;
 import net.neoforged.jst.cli.io.FileSinks;
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.concurrent.Callable;
 
@@ -41,8 +43,11 @@ public class Main implements Callable<Integer> {
     @CommandLine.Option(names = "--max-queue-depth", description = "When both input and output support ordering (archives), the transformer will try to maintain that order. To still process items in parallel, a queue is used. Larger queue depths lead to higher memory usage.")
     int maxQueueDepth = 100;
 
-    @CommandLine.Command(name = "--debug", description = "Print additional debugging information")
+    @CommandLine.Option(names = "--debug", description = "Print additional debugging information")
     boolean debug = false;
+
+    @CommandLine.Option(names = "--problems-report", description = "Write problems to this report file.")
+    Path problemsReport;
 
     private final HashSet<SourceTransformer> enabledTransformers = new HashSet<>();
 
@@ -68,7 +73,8 @@ public class Main implements Callable<Integer> {
     public Integer call() throws Exception {
         var logger = debug ? new Logger(System.out, System.err) : new Logger(null, System.err);
         try (var source = FileSources.create(inputPath, inputFormat);
-             var processor = new SourceFileProcessor(logger)) {
+             var problemReporter = createProblemReporter(logger, problemsReport);
+             var processor = new SourceFileProcessor(logger, Objects.requireNonNullElse(problemReporter, ProblemReporter.NOOP))) {
 
             if (librariesList != null) {
                 processor.addLibrariesList(librariesList);
@@ -94,6 +100,14 @@ public class Main implements Callable<Integer> {
         }
 
         return 0;
+    }
+
+    private FileProblemReporter createProblemReporter(Logger logger, Path problemsReport) {
+        if (problemsReport == null) {
+            return null;
+        } else {
+            return new FileProblemReporter(logger, problemsReport);
+        }
     }
 
     private void setupPluginCliOptions(List<SourceTransformerPlugin> plugins, CommandLine.Model.CommandSpec spec) {
