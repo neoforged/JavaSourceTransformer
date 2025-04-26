@@ -1,4 +1,6 @@
 package com;
 
-public class MyTarget<T> implements com.InjectedGeneric<T, MyTarget<T>> {
+import com.InjectedGeneric;
+
+public class MyTarget<T> implements InjectedGeneric<T, MyTarget<T>> {
 }

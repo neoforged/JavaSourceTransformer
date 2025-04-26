@@ -1,2 +1,5 @@
-public class MyTarget implements com.example.I1, com.example.I2 {
+import com.example.I1;
+import com.example.I2;
+
+public class MyTarget implements I1, I2 {
 }

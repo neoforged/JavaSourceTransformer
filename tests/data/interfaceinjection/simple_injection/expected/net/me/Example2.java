@@ -1,4 +1,6 @@
 package net.me;
 
-public class Example2 extends Object implements com.example.InjectedInterface {
+import com.example.InjectedInterface;
+
+public class Example2 extends Object implements InjectedInterface {
 }

@@ -1,4 +1,6 @@
 package net.me;
 
-public class Example implements com.example.InjectedInterface {
+import com.example.InjectedInterface;
+
+public class Example implements InjectedInterface {
 }

@@ -2,5 +2,7 @@ package net;
 
 import java.util.*;
 
-public class Example2 implements Runnable, Consumer<?>, com.example.InjectedInterface {
+import com.example.InjectedInterface;
+
+public class Example2 implements Runnable, Consumer<?>, InjectedInterface {
 }

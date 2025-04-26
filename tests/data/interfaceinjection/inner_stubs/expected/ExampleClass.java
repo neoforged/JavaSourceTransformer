@@ -1,2 +1,5 @@
-public class ExampleClass implements com.example.InjectedInterface.Inner, com.example.InjectedInterface.Inner.SubInner {
+import com.example.InjectedInterface.Inner;
+import com.example.InjectedInterface.Inner.SubInner;
+
+public class ExampleClass implements Inner, SubInner {
 }
