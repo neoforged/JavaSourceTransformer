@@ -17,13 +17,6 @@ plugins {
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
-        maven {
-            name 'Maven for PR #15' // https://github.com/neoforged/InstallerTools/pull/15
-            url 'https://prmaven.neoforged.net/InstallerTools/pr15'
-            content {
-                includeModule('net.neoforged.installertools', 'problems-api')
-            }
-        }
         mavenCentral()
         maven {
             url "https://www.jetbrains.com/intellij-repository/releases/"
