@@ -1,9 +1,9 @@
 package net.neoforged.jst.tests;
 
 import com.intellij.util.ArrayUtil;
-import net.neoforged.jst.api.ProblemLocation;
-import net.neoforged.jst.cli.FileProblemReporter;
 import net.neoforged.jst.cli.Main;
+import net.neoforged.problems.FileProblemReporter;
+import net.neoforged.problems.Problem;
 import org.assertj.core.util.CanIgnoreReturnValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -427,20 +427,17 @@ public class EmbeddedTest {
             var actualRecords = FileProblemReporter.loadRecords(reportFile);
 
             // Relativize the paths to make them comparable to the reference data.
-            actualRecords = actualRecords.stream().map(record -> new FileProblemReporter.ProblemRecord(
-                    record.problemId(),
-                    record.severity(),
-                    new ProblemLocation(
-                            testDir.relativize(record.location().file()),
-                            record.location().line(),
-                            record.location().column(),
-                            record.location().offset(),
-                            record.location().length()
-                    ),
-                    record.message()
-            )).toList();
+            actualRecords = actualRecords.stream().map(record -> {
+                        if (record.location() == null) {
+                            return record;
+                        }
+                        return Problem.builder(record)
+                                .location(record.location().withFile(testDir.relativize(record.location().file())))
+                                .build();
+                    }
+            ).toList();
 
-            assertThat(actualRecords).containsExactlyInAnyOrder(expectedRecords.toArray(FileProblemReporter.ProblemRecord[]::new));
+            assertThat(actualRecords).containsExactlyInAnyOrder(expectedRecords.toArray(Problem[]::new));
         }
     }
 

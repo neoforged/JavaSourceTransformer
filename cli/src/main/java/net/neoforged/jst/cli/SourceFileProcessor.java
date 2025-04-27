@@ -6,14 +6,13 @@ import net.neoforged.jst.api.FileEntry;
 import net.neoforged.jst.api.FileSink;
 import net.neoforged.jst.api.FileSource;
 import net.neoforged.jst.api.Logger;
-import net.neoforged.jst.api.ProblemLocation;
-import net.neoforged.jst.api.ProblemReporter;
 import net.neoforged.jst.api.Replacement;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.TransformContext;
 import net.neoforged.jst.cli.intellij.ClasspathSetup;
 import net.neoforged.jst.cli.intellij.IntelliJEnvironmentImpl;
+import net.neoforged.problems.ProblemReporter;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

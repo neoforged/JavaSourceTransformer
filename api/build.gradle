@@ -19,6 +19,7 @@ java {
 dependencies {
     api "com.jetbrains.intellij.java:java-psi-impl:$intellij_version"
     api "info.picocli:picocli:$picocli_version"
+    api "net.neoforged.installertools:problems-api:$problems_api_version"
     compileOnly "org.jetbrains:annotations:$jetbrains_annotations_version"
 }
 

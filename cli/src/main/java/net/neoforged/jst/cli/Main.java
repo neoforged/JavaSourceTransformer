@@ -1,11 +1,12 @@
 package net.neoforged.jst.cli;
 
 import net.neoforged.jst.api.Logger;
-import net.neoforged.jst.api.ProblemReporter;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.SourceTransformerPlugin;
 import net.neoforged.jst.cli.io.FileSinks;
 import net.neoforged.jst.cli.io.FileSources;
+import net.neoforged.problems.FileProblemReporter;
+import net.neoforged.problems.ProblemReporter;
 import org.jetbrains.annotations.VisibleForTesting;
 import picocli.CommandLine;
 
@@ -73,7 +74,7 @@ public class Main implements Callable<Integer> {
     public Integer call() throws Exception {
         var logger = debug ? new Logger(System.out, System.err) : new Logger(null, System.err);
         try (var source = FileSources.create(inputPath, inputFormat);
-             var problemReporter = createProblemReporter(logger, problemsReport);
+             var problemReporter = createProblemReporter(problemsReport);
              var processor = new SourceFileProcessor(logger, Objects.requireNonNullElse(problemReporter, ProblemReporter.NOOP))) {
 
             if (librariesList != null) {
@@ -102,11 +103,11 @@ public class Main implements Callable<Integer> {
         return 0;
     }
 
-    private FileProblemReporter createProblemReporter(Logger logger, Path problemsReport) {
+    private FileProblemReporter createProblemReporter(Path problemsReport) {
         if (problemsReport == null) {
             return null;
         } else {
-            return new FileProblemReporter(logger, problemsReport);
+            return new FileProblemReporter(problemsReport);
         }
     }
 

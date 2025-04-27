@@ -13,7 +13,7 @@
       "file": "accesstransformer.cfg",
       "line": 4
     },
-    "message": "The target ExistingClass FIELD notAField does not exist."
+    "contextualLabel": "The target ExistingClass FIELD notAField does not exist."
   },
   {
     "problemId": {
@@ -29,7 +29,7 @@
       "file": "accesstransformer.cfg",
       "line": 6
     },
-    "message": "The target DoesntExist CLASS does not exist."
+    "contextualLabel": "The target DoesntExist CLASS does not exist."
   },
   {
     "problemId": {
@@ -45,6 +45,6 @@
       "file": "accesstransformer.cfg",
       "line": 5
     },
-    "message": "The target ExistingClass METHOD notAMethod()V does not exist."
+    "contextualLabel": "The target ExistingClass METHOD notAMethod()V does not exist."
   }
 ]
