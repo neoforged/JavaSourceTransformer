@@ -117,7 +117,6 @@ public class AccessTransformersTransformer implements SourceTransformer {
 
     public enum AccessTransformerValidation {
         LOG,
-        REPORT,
         ERROR
     }
 }
