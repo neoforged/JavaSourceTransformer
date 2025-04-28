@@ -1,5 +1,10 @@
 package net.neoforged.jst.tests;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import com.intellij.util.ArrayUtil;
 import net.neoforged.jst.cli.Main;
 import net.neoforged.problems.FileProblemReporter;
@@ -419,7 +424,8 @@ public class EmbeddedTest {
 
         var expectedLog = testDir.resolve("expected.log");
         if (Files.exists(expectedLog)) {
-            assertThat(expectedLog).content().isEqualToNormalizingNewlines(consoleOut);
+            var expectedLogContent = Files.readString(expectedLog);
+            assertThat(consoleOut).isEqualToNormalizingNewlines(expectedLogContent);
         }
 
         if (Files.exists(expectedReport)) {
@@ -437,8 +443,23 @@ public class EmbeddedTest {
                     }
             ).toList();
 
-            assertThat(actualRecords).containsExactlyInAnyOrder(expectedRecords.toArray(Problem[]::new));
+            assertEquals(problemsToJson(expectedRecords), problemsToJson(actualRecords));
         }
+    }
+
+    private String problemsToJson(List<Problem> problems) {
+        return new GsonBuilder()
+                .setPrettyPrinting()
+                .registerTypeHierarchyAdapter(Path.class, new TypeAdapter<Path>() {
+                    public void write(JsonWriter out, Path value) throws IOException {
+                        out.value(value.toString().replace('\\', '/'));
+                    }
+
+                    public Path read(JsonReader in) throws IOException {
+                        return Paths.get(in.nextString());
+                    }
+                })
+                .create().toJson(problems);
     }
 
     protected final void assertZipEqualsDir(Path zip, Path expectedDir) throws IOException {

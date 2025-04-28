@@ -8,6 +8,7 @@ import net.neoforged.jst.api.Logger;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.TransformContext;
+import net.neoforged.problems.Problem;
 import net.neoforged.problems.ProblemGroup;
 import net.neoforged.problems.ProblemId;
 import net.neoforged.problems.ProblemLocation;
@@ -25,7 +26,7 @@ import java.util.regex.Pattern;
 public class AccessTransformersTransformer implements SourceTransformer {
 
     private static final ProblemGroup PROBLEM_GROUP = ProblemGroup.create("access-transformer", "Access Transformers");
-    private static final ProblemId INVALID_AT = ProblemId.create("invalid-at", "Invalid", PROBLEM_GROUP);
+    static final ProblemId INVALID_AT = ProblemId.create("invalid-at", "Invalid", PROBLEM_GROUP);
     private static final ProblemId MISSING_TARGET = ProblemId.create("missing-target", "Missing Target", PROBLEM_GROUP);
 
     private static final Pattern LINE_PATTERN = Pattern.compile("\\bline\\s+(\\d+)");
@@ -85,21 +86,11 @@ public class AccessTransformersTransformer implements SourceTransformer {
                 if (target instanceof Target.ClassTarget && target.className().contains("$")) return;
                 logger.error("Access transformer %s, targeting %s did not apply as its target doesn't exist", transformation, target);
 
-                // Report a problem for each origin of the transform
-                for (String origin : transformation.origins()) {
-                    var m = ORIGIN_PATTERN.matcher(origin);
-                    ProblemLocation problemLocation;
-                    if (!m.matches()) {
-                        problemLocation = ProblemLocation.ofFile(Paths.get(origin));
-                    } else {
-                        var file = Path.of(m.group(1));
-                        var line = Integer.parseUnsignedInt(m.group(2));
-                        // AT reports 0-based lines, we want 1-based
-                        problemLocation = ProblemLocation.ofLocationInFile(file, line + 1);
-                    }
-
-                    problemReporter.report(MISSING_TARGET, ProblemSeverity.ERROR, problemLocation, "The target " + target + " does not exist.");
-                }
+                var problem = Problem.builder(MISSING_TARGET)
+                        .severity(ProblemSeverity.ERROR)
+                        .contextualLabel("The target " + target + " does not exist.")
+                        .build();
+                reportProblem(problemReporter, transformation, problem);
             });
             errored = true;
         }
@@ -107,9 +98,26 @@ public class AccessTransformersTransformer implements SourceTransformer {
         return !(errored && validation == AccessTransformerValidation.ERROR);
     }
 
+    static void reportProblem(ProblemReporter problemReporter, Transformation transformation, Problem problem) {
+        // Report a problem for each origin of the transform
+        for (String origin : transformation.origins()) {
+            var m = ORIGIN_PATTERN.matcher(origin);
+            ProblemLocation problemLocation;
+            if (!m.matches()) {
+                problemLocation = ProblemLocation.ofFile(Paths.get(origin));
+            } else {
+                var file = Path.of(m.group(1));
+                var line = Integer.parseUnsignedInt(m.group(2));
+                problemLocation = ProblemLocation.ofLocationInFile(file, line);
+            }
+
+            problemReporter.report(Problem.builder(problem).location(problemLocation).build());
+        }
+    }
+
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
-        var visitor = new ApplyATsVisitor(ats, replacements, pendingATs, logger);
+        var visitor = new ApplyATsVisitor(ats, replacements, pendingATs, logger, problemReporter);
         visitor.visitFile(psiFile);
         if (visitor.errored) {
             errored = true;

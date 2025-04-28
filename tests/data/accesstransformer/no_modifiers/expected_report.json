@@ -1,0 +1,18 @@
+[
+  {
+    "problemId": {
+      "id": "invalid-at",
+      "displayName": "Invalid",
+      "group": {
+        "id": "access-transformer",
+        "displayName": "Access Transformers"
+      }
+    },
+    "severity": "WARNING",
+    "location": {
+      "file": "accesstransformer.cfg",
+      "line": 1
+    },
+    "contextualLabel": "Access transformer targeting record class C1 attempts to widen its access without widening the constructor\u0027s access. You must AT the constructor too: \"public C1 \u003cinit\u003e()V\""
+  }
+]

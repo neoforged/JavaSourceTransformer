@@ -1,1 +1,1 @@
-Access transformer PROTECTED LEAVE {atpath}:2 targeting callThingy2 of If1 attempted to make a non-static interface method PROTECTED. They can only be made public.
+Access transformer targeting callThingy2 of If1 attempted to make a non-static interface method PROTECTED. They can only be made public. at PROTECTED LEAVE {atpath}:2
