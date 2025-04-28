@@ -58,7 +58,8 @@ public class AccessTransformersTransformer implements SourceTransformer {
                 if (e.getMessage() != null) {
                     var m = LINE_PATTERN.matcher(e.getMessage());
                     if (m.matches()) {
-                        int line = Integer.parseUnsignedInt(m.group(1));
+                        // The AT parser internally uses 0-based line numbering, but the problem reporter uses 1-based
+                        int line = 1 + Integer.parseUnsignedInt(m.group(1));
                         problemReporter.report(INVALID_AT, ProblemSeverity.ERROR, ProblemLocation.ofLocationInFile(path, line), e.getMessage());
                     } else {
                         problemReporter.report(INVALID_AT, ProblemSeverity.ERROR, ProblemLocation.ofFile(path), e.getMessage());
@@ -91,7 +92,7 @@ public class AccessTransformersTransformer implements SourceTransformer {
                     if (!m.matches()) {
                         problemLocation = ProblemLocation.ofFile(Paths.get(origin));
                     } else {
-                        var file = Paths.get(m.group(1));
+                        var file = Path.of(m.group(1));
                         var line = Integer.parseUnsignedInt(m.group(2));
                         // AT reports 0-based lines, we want 1-based
                         problemLocation = ProblemLocation.ofLocationInFile(file, line + 1);

@@ -7,6 +7,7 @@ import net.neoforged.jst.cli.io.FileSinks;
 import net.neoforged.jst.cli.io.FileSources;
 import net.neoforged.problems.FileProblemReporter;
 import net.neoforged.problems.ProblemReporter;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 import picocli.CommandLine;
 
@@ -103,6 +104,7 @@ public class Main implements Callable<Integer> {
         return 0;
     }
 
+    @Nullable
     private FileProblemReporter createProblemReporter(Path problemsReport) {
         if (problemsReport == null) {
             return null;
