@@ -1,0 +1,18 @@
+[
+  {
+    "problemId": {
+      "id": "invalid-at",
+      "displayName": "Invalid",
+      "group": {
+        "id": "access-transformer",
+        "displayName": "Access Transformers"
+      }
+    },
+    "severity": "WARNING",
+    "location": {
+      "file": "accesstransformer.cfg",
+      "line": 1
+    },
+    "contextualLabel": "Access transformer targeting constructor of AnEnum attempted to make an enum constructor PUBLIC"
+  }
+]

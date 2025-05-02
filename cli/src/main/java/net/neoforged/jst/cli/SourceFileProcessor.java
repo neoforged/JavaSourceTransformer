@@ -13,6 +13,7 @@ import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.TransformContext;
 import net.neoforged.jst.cli.intellij.ClasspathSetup;
 import net.neoforged.jst.cli.intellij.IntelliJEnvironmentImpl;
+import net.neoforged.problems.ProblemReporter;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -33,11 +34,13 @@ class SourceFileProcessor implements AutoCloseable {
     private final IntelliJEnvironmentImpl ijEnv;
     private int maxQueueDepth = 50;
     private final Logger logger;
+    private final ProblemReporter problemReporter;
 
     private final List<String> ignoredPrefixes = new ArrayList<>();
 
-    public SourceFileProcessor(Logger logger) throws IOException {
+    public SourceFileProcessor(Logger logger, ProblemReporter problemReporter) throws IOException {
         this.logger = logger;
+        this.problemReporter = problemReporter;
         ijEnv = new IntelliJEnvironmentImpl(logger);
         ijEnv.addCurrentJdkToClassPath();
     }
@@ -47,7 +50,7 @@ class SourceFileProcessor implements AutoCloseable {
             throw new IllegalStateException("Cannot have an input with possibly more than one file when the output is a single file.");
         }
 
-        var context = new TransformContext(ijEnv, source, sink, logger);
+        var context = new TransformContext(ijEnv, source, sink, logger, problemReporter);
 
         var sourceRoot = source.createSourceRoot(VirtualFileManager.getInstance());
         ijEnv.addSourceRoot(sourceRoot);

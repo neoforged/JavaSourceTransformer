@@ -1,1 +1,1 @@
-Access transformer PUBLIC LEAVE {atpath}:1 targeting constructor of AnEnum attempted to make an enum constructor PUBLIC
+Access transformer targeting constructor of AnEnum attempted to make an enum constructor PUBLIC at PUBLIC LEAVE {atpath}:1
