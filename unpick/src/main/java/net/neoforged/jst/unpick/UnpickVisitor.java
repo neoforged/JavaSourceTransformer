@@ -16,18 +16,17 @@ import com.intellij.psi.PsiMethodCallExpression;
 import com.intellij.psi.PsiPrefixExpression;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
-import net.earthcomputer.unpickv3parser.tree.GroupFormat;
-import net.earthcomputer.unpickv3parser.tree.GroupType;
-import net.earthcomputer.unpickv3parser.tree.Literal;
-import net.earthcomputer.unpickv3parser.tree.TargetMethod;
-import net.earthcomputer.unpickv3parser.tree.expr.BinaryExpression;
-import net.earthcomputer.unpickv3parser.tree.expr.CastExpression;
-import net.earthcomputer.unpickv3parser.tree.expr.Expression;
-import net.earthcomputer.unpickv3parser.tree.expr.ExpressionVisitor;
-import net.earthcomputer.unpickv3parser.tree.expr.FieldExpression;
-import net.earthcomputer.unpickv3parser.tree.expr.LiteralExpression;
-import net.earthcomputer.unpickv3parser.tree.expr.ParenExpression;
-import net.earthcomputer.unpickv3parser.tree.expr.UnaryExpression;
+import daomephsta.unpick.constantmappers.datadriven.tree.GroupFormat;
+import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.BinaryExpression;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.CastExpression;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.Expression;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.ExpressionVisitor;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.LiteralExpression;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.ParenExpression;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.UnaryExpression;
 import net.neoforged.jst.api.ImportHelper;
 import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.api.Replacements;
@@ -37,6 +36,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 public class UnpickVisitor extends PsiRecursiveElementVisitor {
@@ -218,7 +218,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 return true;
             }
 
-            if (group.type() == GroupType.FLAG && type.supportsFlag) {
+            if (group.flag() && type.supportsFlag) {
                 var flag = generateFlag(group, number.longValue(), type);
                 if (flag != null) {
                     replacements.replace(element, flag);
@@ -260,7 +260,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
     private boolean checkNotRecursive(Expression expression) {
         if (fieldContext != null && expression instanceof FieldExpression fld) {
-            return !(fld.className.equals(classContext.getQualifiedName()) && fld.fieldName.equals(fieldContext.getName()));
+            return !(fld.className.equals(classContext.getQualifiedName()) && Objects.equals(fld.fieldName, fieldContext.getName()));
         }
         return true;
     }
@@ -271,11 +271,15 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 cachedDefinition = collection.getDefinitionsFor(calledMethod);
             }
             if (cachedDefinition != null) {
-                var grId = cachedDefinition.paramGroups.get(currentParamIndex);
-                if (grId != null) {
-                    var gr = collection.getGroup(grId);
-                    if (gr != null && apply.test(gr)) {
-                        return true;
+                var groupId = cachedDefinition.paramGroups().get(currentParamIndex);
+                if (groupId != null) {
+                    var groups = collection.getGroups(groupId);
+                    if (!groups.isEmpty()) {
+                        for (UnpickCollection.Group group : groups) {
+                            if (apply.test(group)) {
+                                return true;
+                            }
+                        }
                     }
                 }
             }
@@ -301,12 +305,12 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
             @Override
             public void visitLiteralExpression(LiteralExpression literalExpression) {
-                if (literalExpression.literal instanceof Literal.String str) {
-                    s.append('\"').append(str.value).append('\"'); // TODO - escape
+                if (literalExpression.literal instanceof Literal.String(String value)) {
+                    s.append('\"').append(value.replace("\"", "\\\"")).append('\"');
                 } else if (literalExpression.literal instanceof Literal.Integer i) {
-                    s.append(i.value);
+                    s.append(i.value());
                 } else if (literalExpression.literal instanceof Literal.Long l) {
-                    s.append(l.value).append('l');
+                    s.append(l.value()).append('l');
                 } else if (literalExpression.literal instanceof Literal.Double d) {
                     s.append(d).append('d');
                 } else if (literalExpression.literal instanceof Literal.Float f) {
@@ -326,6 +330,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                     case FLOAT -> "float";
                     case SHORT -> "short";
                     case STRING -> "String";
+                    case CLASS -> "Class";
                 });
                 s.append(')');
                 s.append(write(castExpression.operand));

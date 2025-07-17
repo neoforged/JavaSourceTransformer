@@ -1,11 +1,11 @@
 package net.neoforged.jst.unpick;
 
 import com.intellij.psi.PsiFile;
-import net.earthcomputer.unpickv3parser.UnpickV3Reader;
-import net.earthcomputer.unpickv3parser.tree.GroupDefinition;
-import net.earthcomputer.unpickv3parser.tree.TargetField;
-import net.earthcomputer.unpickv3parser.tree.TargetMethod;
-import net.earthcomputer.unpickv3parser.tree.UnpickV3Visitor;
+import daomephsta.unpick.constantmappers.datadriven.parser.v3.UnpickV3Reader;
+import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
+import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import net.neoforged.jst.api.Replacements;
 import net.neoforged.jst.api.SourceTransformer;
 import net.neoforged.jst.api.TransformContext;
@@ -27,7 +27,7 @@ public class UnpickTransformer implements SourceTransformer {
 
     @Override
     public void beforeRun(TransformContext context) {
-        var groups = new HashMap<UnpickCollection.TypedKey, GroupDefinition>();
+        var groups = new HashMap<UnpickCollection.TypedKey, List<GroupDefinition>>();
         var fields = new ArrayList<TargetField>();
         var methods = new ArrayList<TargetMethod>();
 
@@ -36,7 +36,8 @@ public class UnpickTransformer implements SourceTransformer {
                 new UnpickV3Reader(reader).accept(new UnpickV3Visitor() {
                     @Override
                     public void visitGroupDefinition(GroupDefinition groupDefinition) {
-                        groups.merge(new UnpickCollection.TypedKey(groupDefinition.dataType, groupDefinition.scope, groupDefinition.name), groupDefinition, UnpickTransformer.this::merge);
+                        groups.computeIfAbsent(new UnpickCollection.TypedKey(groupDefinition.dataType(), groupDefinition.scopes(), groupDefinition.name()), k -> new ArrayList<>())
+                                .add(groupDefinition);
                     }
 
                     @Override
@@ -61,11 +62,5 @@ public class UnpickTransformer implements SourceTransformer {
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
         new UnpickVisitor(psiFile, collection, replacements).visitFile(psiFile);
-    }
-
-    private GroupDefinition merge(GroupDefinition first, GroupDefinition second) {
-        // TODO - validate they can be merged
-        first.constants.addAll(second.constants);
-        return first;
     }
 }

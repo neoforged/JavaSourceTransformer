@@ -12,6 +12,6 @@ public class Outsider {
     }
 
     public void anotherExecute() {
-        int i = Outsider.DIFFERENT_CONSTANT; // This should be replaced with DIFFERENT_CONST
+        int i = Outsider.DIFFERENT_CONST; // This should be replaced with DIFFERENT_CONST
     }
 }

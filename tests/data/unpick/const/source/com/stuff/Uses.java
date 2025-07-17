@@ -6,11 +6,11 @@ public class Uses {
     void run() {
         String s = "1.21.4" + "2";
 
-        float f = 3.1415927f;
+        float f = 3.141592653589793f;
 
-        f = 1.0471976f;
+        f = 1.0471975511965976f;
 
-        double d = 3.1415927d; // PI unpick is strict float so this should not be replaced
+        double d = 3.141592653589793d; // PI unpick is strict float so this should not be replaced
 
         d = 2.5d; // but the other float unpick isn't so this double literal should be replaced
 

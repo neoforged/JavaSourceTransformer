@@ -12,7 +12,7 @@ public class Uses {
 
         f = Math.PI / 3;
 
-        double d = 3.1415927d; // PI unpick is strict float so this should not be replaced
+        double d = 3.141592653589793d; // PI unpick is strict float so this should not be replaced
 
         d = Constants.FLOAT_CT; // but the other float unpick isn't so this double literal should be replaced
 
