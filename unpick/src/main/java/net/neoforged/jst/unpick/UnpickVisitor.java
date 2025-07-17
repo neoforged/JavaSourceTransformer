@@ -5,6 +5,7 @@ import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.PsiAssignmentExpression;
 import com.intellij.psi.PsiCallExpression;
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiCodeBlock;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiFile;
@@ -56,15 +57,13 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
     @Nullable
     private PsiMethod methodContext;
-
     @Nullable
     private PsiField fieldContext;
 
     @Nullable
     private PsiMethod calledMethod;
-
     @Nullable
-    private TargetMethod cachedDefinition;
+    private TargetMethod methodCallTarget;
 
     private int currentParamIndex;
 
@@ -98,17 +97,19 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             if (ref instanceof PsiMethod met) {
                 var oldMet = calledMethod;
                 calledMethod = met;
-                cachedDefinition = null;
+                methodCallTarget = null;
 
                 for (int i = 0; i < call.getArgumentList().getExpressions().length; i++) {
                     var oldIndex = currentParamIndex;
                     currentParamIndex = i;
 
-                    // TODO - we might want to rethink this, right now we rewalk everything with new context,
-                    // but we could instead collect the variables from the start
-                    if (call.getArgumentList().getExpressions()[i] instanceof PsiReferenceExpression refEx) {
+                    // If any parameter of the method call is directly referencing local var we re-walk the entire method body
+                    // and apply unpick with the context of the method being called to all of its assignments (including the initialiser)
+                    if (call.getArgumentList().getExpressions()[i] instanceof PsiReferenceExpression refEx && methodContext != null) {
+                        PsiCodeBlock body = methodContext.getBody();
                         PsiElement resolved = PsiHelper.resolve(refEx);
-                        if (resolved instanceof PsiLocalVariable localVar && methodContext != null && methodContext.getBody() != null) {
+
+                        if (body != null && resolved instanceof PsiLocalVariable localVar) {
                             if (localVar.getInitializer() != null) {
                                 localVar.getInitializer().accept(limitedDirectVisitor());
                             }
@@ -124,7 +125,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                                     }
                                     super.visitElement(element);
                                 }
-                            }.visitElement(methodContext.getBody());
+                            }.visitElement(body);
                             continue;
                         }
                     }
@@ -143,6 +144,12 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
         element.acceptChildren(this);
     }
 
+    /**
+     * {@return an element visitor that visits only tokens outside of call expressions}
+     * This can be used when there is no need to handle call expressions as they would have already
+     * been handled or will be handled - for instance, when re-applying unpick for local variable initialisers,
+     * but with more context.
+     */
     private PsiRecursiveElementVisitor limitedDirectVisitor() {
         return new PsiRecursiveElementVisitor() {
             @Override
@@ -186,15 +193,15 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             if (isUnaryMinus(tok)) val = -val;
             replaceLiteral(tok, val, IntegerType.INT);
         } else if (tok.getTokenType() == JavaTokenType.LONG_LITERAL) {
-            var val = Long.parseLong(removeSuffix(tok.getText(), "l"));
+            var val = Long.parseLong(removeSuffix(tok.getText(), 'l'));
             if (isUnaryMinus(tok)) val = -val;
             replaceLiteral(tok, val, IntegerType.LONG);
         } else if (tok.getTokenType() == JavaTokenType.DOUBLE_LITERAL) {
-            var val = Double.parseDouble(removeSuffix(tok.getText(), "d"));
+            var val = Double.parseDouble(removeSuffix(tok.getText(), 'd'));
             if (isUnaryMinus(tok)) val = -val;
             replaceLiteral(tok, val, IntegerType.DOUBLE);
         } else if (tok.getTokenType() == JavaTokenType.FLOAT_LITERAL) {
-            var val = Float.parseFloat(removeSuffix(tok.getText(), "f"));
+            var val = Float.parseFloat(removeSuffix(tok.getText(), 'f'));
             if (isUnaryMinus(tok)) val = -val;
             replaceLiteral(tok, val, IntegerType.FLOAT);
         }
@@ -267,11 +274,11 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
     private boolean forInScope(Predicate<UnpickCollection.Group> apply) {
         if (calledMethod != null) {
-            if (cachedDefinition == null) {
-                cachedDefinition = collection.getDefinitionsFor(calledMethod);
+            if (methodCallTarget == null) {
+                methodCallTarget = collection.getDefinitionsFor(calledMethod);
             }
-            if (cachedDefinition != null) {
-                var groupId = cachedDefinition.paramGroups().get(currentParamIndex);
+            if (methodCallTarget != null) {
+                var groupId = methodCallTarget.paramGroups().get(currentParamIndex);
                 if (groupId != null) {
                     var groups = collection.getGroups(groupId);
                     if (!groups.isEmpty()) {
@@ -413,7 +420,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
         long residual = negated ? negatedResidual : orResidual;
 
-        StringBuilder replacement = new StringBuilder(write(constants.get(0)));
+        StringBuilder replacement = new StringBuilder(write(constants.getFirst()));
         for (int i = 1; i < constants.size(); i++) {
             replacement.append(" | ");
             replacement.append(write(constants.get(i)));
@@ -448,8 +455,9 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
         return residual;
     }
 
-    private static String removeSuffix(String in, String suffix) {
-        if (in.endsWith(suffix) || in.endsWith(suffix.toUpperCase(Locale.ROOT))) {
+    private static String removeSuffix(String in, char suffix) {
+        var lastChar = in.charAt(in.length() - 1);
+        if (lastChar == suffix || lastChar == Character.toUpperCase(suffix)) {
             return in.substring(0, in.length() - 1);
         }
         return in;
