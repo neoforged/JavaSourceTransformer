@@ -6,7 +6,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public enum IntegerType {
+/**
+ * Class that is used to compute mathematical operations between number types while operating on {@link Number}s.
+ * <p>
+ * Each operation has a method that is overridden as needed by each number type to ensure that
+ * special behaviour is preserved (e.g. we cannot add two bytes as longs and then attempt to cast back
+ * to byte because we need to make sure that the addition overflows as as <code>byte</code>; the same
+ * applies to floats and doubles).
+ */
+public enum NumberType {
     BYTE(DataType.BYTE, Byte.class, false) {
         @Override
         public Number cast(Number in) {
@@ -269,10 +277,10 @@ public enum IntegerType {
         }
     };
 
-    public static final Map<Class<?>, IntegerType> TYPES;
+    public static final Map<Class<?>, NumberType> TYPES;
     static {
-        var types = new HashMap<Class<?>, IntegerType>();
-        for (IntegerType value : values()) {
+        var types = new HashMap<Class<?>, NumberType>();
+        for (NumberType value : values()) {
             types.put(value.classType, value);
         }
         TYPES = Collections.unmodifiableMap(types);
@@ -280,10 +288,20 @@ public enum IntegerType {
 
     public final DataType dataType;
     public final Class<?> classType;
+    /**
+     * Whether this number type can be treated as a bit flag - only {@code true} for {@link #INT} and {@link #LONG}.
+     */
     public final boolean supportsFlag;
-    public final IntegerType[] widenFrom;
+    /**
+     * Number types that can be converted to this type without needing an explicit cast:
+     * <p>
+     * <code>byte</code> -> <code>short</code> -> <code>int</code> -> <code>long</code>
+     * <p>
+     * <code>int</code> -> <code>float</code> -> <code>double</code>
+     */
+    public final NumberType[] widenFrom;
 
-    IntegerType(DataType dataType, Class<?> classType, boolean supportsFlag, IntegerType... widenFrom) {
+    NumberType(DataType dataType, Class<?> classType, boolean supportsFlag, NumberType... widenFrom) {
         this.dataType = dataType;
         this.classType = classType;
         this.supportsFlag = supportsFlag;

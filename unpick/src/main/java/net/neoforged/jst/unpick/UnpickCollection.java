@@ -264,7 +264,7 @@ public class UnpickCollection {
             } else if (expression instanceof UnaryExpression unaryExpression) {
                 var value = (Number) resolveConstant(unaryExpression.operand, facade, scope);
                 return switch (unaryExpression.operator) {
-                    case NEGATE -> value; // TODO - we can't negate numbers?
+                    case NEGATE -> NumberType.TYPES.get(value.getClass()).negate(value);
                     case BIT_NOT -> value instanceof Long ? ~value.longValue() : ~value.intValue();
                 };
             } else if (expression instanceof BinaryExpression binaryExpression) {
@@ -272,7 +272,7 @@ public class UnpickCollection {
                 var rhs = resolveConstant(binaryExpression.rhs, facade, scope);
 
                 if (lhs instanceof Number l && rhs instanceof Number r) {
-                    var type = IntegerType.TYPES.get(l.getClass());
+                    var type = NumberType.TYPES.get(l.getClass());
                     return switch (binaryExpression.operator) {
                         case ADD -> type.add(l, r);
                         case DIVIDE -> type.divide(l, r);

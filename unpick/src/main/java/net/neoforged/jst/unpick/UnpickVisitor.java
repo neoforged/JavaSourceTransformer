@@ -191,27 +191,27 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 val = Integer.parseUnsignedInt(tok.getText());
             }
             if (isUnaryMinus(tok)) val = -val;
-            replaceLiteral(tok, val, IntegerType.INT);
+            replaceLiteral(tok, val, NumberType.INT);
         } else if (tok.getTokenType() == JavaTokenType.LONG_LITERAL) {
             var val = Long.parseLong(removeSuffix(tok.getText(), 'l'));
             if (isUnaryMinus(tok)) val = -val;
-            replaceLiteral(tok, val, IntegerType.LONG);
+            replaceLiteral(tok, val, NumberType.LONG);
         } else if (tok.getTokenType() == JavaTokenType.DOUBLE_LITERAL) {
             var val = Double.parseDouble(removeSuffix(tok.getText(), 'd'));
             if (isUnaryMinus(tok)) val = -val;
-            replaceLiteral(tok, val, IntegerType.DOUBLE);
+            replaceLiteral(tok, val, NumberType.DOUBLE);
         } else if (tok.getTokenType() == JavaTokenType.FLOAT_LITERAL) {
             var val = Float.parseFloat(removeSuffix(tok.getText(), 'f'));
             if (isUnaryMinus(tok)) val = -val;
-            replaceLiteral(tok, val, IntegerType.FLOAT);
+            replaceLiteral(tok, val, NumberType.FLOAT);
         }
     }
 
-    private void replaceLiteral(PsiJavaToken element, Number number, IntegerType type) {
+    private void replaceLiteral(PsiJavaToken element, Number number, NumberType type) {
         replaceLiteral(element, number, type, false);
     }
 
-    private boolean replaceLiteral(PsiJavaToken element, Number number, IntegerType type, boolean denyStrict) {
+    private boolean replaceLiteral(PsiJavaToken element, Number number, NumberType type, boolean denyStrict) {
         return forInScope(group -> {
             // If we need to deny strict conversion (so if this is a conversion) we shall do so
             if (group.strict() && denyStrict) return false;
@@ -225,7 +225,10 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 return true;
             }
 
+            // Next, try if this group is a flag and the number type supports flags (ints and longs) we try to generate the flag combination
             if (group.flag() && type.supportsFlag) {
+                // We generate flags for ints based on their long value as
+                // longs are a superset of ints and as such we can reduce code duplication
                 var flag = generateFlag(group, number.longValue(), type);
                 if (flag != null) {
                     replacements.replace(element, flag);
@@ -235,6 +238,8 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 }
             }
 
+            // As a fallback, if the group has a specific format but the
+            // value of the token does not have a constant we format the token
             if (group.format() != null) {
                 replacements.replace(element, formatAs(number, group.format()));
                 replaceMinus(element);
@@ -242,7 +247,8 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 return true;
             }
 
-            for (IntegerType from : type.widenFrom) {
+            // Finally we try to apply non-strict widening from lower number types
+            for (NumberType from : type.widenFrom) {
                 var lower = from.cast(number);
                 if (lower.doubleValue() == number.doubleValue()) {
                     if (replaceLiteral(element, lower, from, true)) {
@@ -406,7 +412,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
     }
 
     @Nullable
-    private String generateFlag(UnpickCollection.Group group, long val, IntegerType type) {
+    private String generateFlag(UnpickCollection.Group group, long val, NumberType type) {
         List<Expression> orConstants = new ArrayList<>();
         long orResidual = getConstantsEncompassing(val, type, group, orConstants);
         long negatedLiteral = type.toUnsignedLong(type.negate(val));
@@ -441,7 +447,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
      * Adds the constants that encompass {@code literal} to {@code constantsOut}.
      * Returns the residual (bits set in the literal not covered by the returned constants).
      */
-    private static long getConstantsEncompassing(long literal, IntegerType unsign, UnpickCollection.Group group, List<Expression> constantsOut) {
+    private static long getConstantsEncompassing(long literal, NumberType unsign, UnpickCollection.Group group, List<Expression> constantsOut) {
         long residual = literal;
         for (var constant : group.constants().entrySet()) {
             long val = unsign.toUnsignedLong((Number) constant.getKey());
