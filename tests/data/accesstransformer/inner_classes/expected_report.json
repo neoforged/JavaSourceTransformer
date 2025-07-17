@@ -1,0 +1,18 @@
+[
+  {
+    "problemId": {
+      "id": "missing-target",
+      "displayName": "Missing Target",
+      "group": {
+        "id": "access-transformer",
+        "displayName": "Access Transformers"
+      }
+    },
+    "severity": "ERROR",
+    "location": {
+      "file": "accesstransformer.cfg",
+      "line": 5
+    },
+    "contextualLabel": "The target com.example.RootClass INNERCLASS InnerDoesntExist does not exist."
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "problemId": {
+      "id": "missing-target",
+      "displayName": "Missing Target",
+      "group": {
+        "id": "access-transformer",
+        "displayName": "Access Transformers"
+      }
+    },
+    "severity": "ERROR",
+    "location": {
+      "file": "accesstransformer.cfg",
+      "line": 3
+    },
+    "contextualLabel": "The target ExistingClass FIELD notAField does not exist."
+  },
+  {
+    "problemId": {
+      "id": "missing-target",
+      "displayName": "Missing Target",
+      "group": {
+        "id": "access-transformer",
+        "displayName": "Access Transformers"
+      }
+    },
+    "severity": "ERROR",
+    "location": {
+      "file": "accesstransformer.cfg",
+      "line": 5
+    },
+    "contextualLabel": "The target DoesntExist CLASS does not exist."
+  },
+  {
+    "problemId": {
+      "id": "missing-target",
+      "displayName": "Missing Target",
+      "group": {
+        "id": "access-transformer",
+        "displayName": "Access Transformers"
+      }
+    },
+    "severity": "ERROR",
+    "location": {
+      "file": "accesstransformer.cfg",
+      "line": 4
+    },
+    "contextualLabel": "The target ExistingClass METHOD notAMethod()V does not exist."
+  }
+]

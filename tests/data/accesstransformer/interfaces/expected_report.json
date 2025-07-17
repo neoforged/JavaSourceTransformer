@@ -1,0 +1,18 @@
+[
+  {
+    "problemId": {
+      "id": "invalid-at",
+      "displayName": "Invalid",
+      "group": {
+        "id": "access-transformer",
+        "displayName": "Access Transformers"
+      }
+    },
+    "severity": "WARNING",
+    "location": {
+      "file": "accesstransformer.cfg",
+      "line": 2
+    },
+    "contextualLabel": "Access transformer targeting callThingy2 of If1 attempted to make a non-static interface method PROTECTED. They can only be made public."
+  }
+]

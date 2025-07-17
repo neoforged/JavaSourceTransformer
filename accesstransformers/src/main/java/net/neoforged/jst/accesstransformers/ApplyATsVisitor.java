@@ -14,17 +14,20 @@ import com.intellij.psi.PsiRecordComponent;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.ClassUtil;
-import com.intellij.psi.util.PsiClassUtil;
 import net.neoforged.accesstransformer.parser.AccessTransformerFiles;
 import net.neoforged.accesstransformer.parser.Target;
 import net.neoforged.accesstransformer.parser.Transformation;
 import net.neoforged.jst.api.Logger;
 import net.neoforged.jst.api.PsiHelper;
 import net.neoforged.jst.api.Replacements;
+import net.neoforged.problems.Problem;
+import net.neoforged.problems.ProblemReporter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
@@ -47,13 +50,15 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
     private final Replacements replacements;
     private final Map<Target, Transformation> pendingATs;
     private final Logger logger;
+    private final ProblemReporter problemReporter;
     boolean errored = false;
 
-    public ApplyATsVisitor(AccessTransformerFiles ats, Replacements replacements, Map<Target, Transformation> pendingATs, Logger logger) {
+    public ApplyATsVisitor(AccessTransformerFiles ats, Replacements replacements, Map<Target, Transformation> pendingATs, Logger logger, ProblemReporter problemReporter) {
         this.ats = ats;
         this.replacements = replacements;
         this.logger = logger;
         this.pendingATs = pendingATs;
+        this.problemReporter = problemReporter;
     }
 
     @Override
@@ -119,7 +124,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
     private void apply(@Nullable Transformation at, PsiModifierListOwner owner, PsiClass containingClass) {
         if (at == null) return;
         if (!at.isValid()) {
-            error("Found invalid access transformer: %s. Final state: conflicting", at);
+            error(at, "Found invalid access transformer. Final state: conflicting");
             return;
         }
 
@@ -147,7 +152,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
         // If we're modifying a non-static interface method we can only make it public, meaning it must be defined as default
         if (containingClass.isInterface() && owner instanceof PsiMethod && !modifiers.hasModifierProperty(PsiModifier.STATIC)) {
             if (targetAcc != Transformation.Modifier.PUBLIC) {
-                error("Access transformer %s targeting %s attempted to make a non-static interface method %s. They can only be made public.", at, targetInfo, targetAcc);
+                error(at, "Access transformer targeting %s attempted to make a non-static interface method %s. They can only be made public.", targetInfo, targetAcc);
             } else {
                 for (var kw : modifiers.getChildren()) {
                     if (kw instanceof PsiKeyword && kw.getText().equals(PsiKeyword.PRIVATE)) { // Strip private, replace it with default
@@ -158,7 +163,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
             }
         } else if (containingClass.isEnum() && owner instanceof PsiMethod mtd && mtd.isConstructor() && at.modifier().ordinal() < Transformation.Modifier.DEFAULT.ordinal()) {
             // Enum constructors can at best be package-private, any other attempt must be prevented
-            error("Access transformer %s targeting %s attempted to make an enum constructor %s", at, targetInfo, at.modifier());
+            error(at, "Access transformer targeting %s attempted to make an enum constructor %s", targetInfo, at.modifier());
         } else if (targetAcc.ordinal() < detectModifier(modifiers, null).ordinal()) { // PUBLIC (0) < PROTECTED (1) < DEFAULT (2) < PRIVATE (3)
             modify(targetAcc, modifiers, Arrays.stream(modifiers.getChildren())
                     .filter(el -> el instanceof PsiKeyword)
@@ -176,7 +181,7 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                     .findFirst()
                     .ifPresent(replacements::remove);
         } else if (finalState == Transformation.FinalState.MAKEFINAL && !modifiers.hasModifierProperty(PsiModifier.FINAL)) {
-            error("Access transformer %s attempted to make %s final. Was non-final", at, targetInfo);
+            error(at, "Access transformer attempted to make %s final. Was non-final", targetInfo);
         }
     }
 
@@ -250,11 +255,11 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
 
             var implicitAT = pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
             if (implicitAT != null && implicitAT.modifier() != detectModifier(psiClass.getModifierList(), classAt)) {
-                error("Access transformer %s targeting the implicit constructor of %s is not valid, as a record's constructor must have the same access level as the record class. Please AT the record too: \"%s\"", implicitAT, className,
+                error(implicitAT, "Access transformer targeting the implicit constructor of %s is not valid, as a record's constructor must have the same access level as the record class. Please AT the record too: \"%s\"", className,
                         implicitAT.modifier().toString().toLowerCase(Locale.ROOT) + " " + className);
                 pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
             } else if (classAt != null && detectModifier(psiClass.getModifierList(), null).ordinal() > classAt.modifier().ordinal() && implicitAT == null) {
-                error("Access transformer %s targeting record class %s attempts to widen its access without widening the constructor's access. You must AT the constructor too: \"%s\"", classAt, className,
+                error(classAt, "Access transformer targeting record class %s attempts to widen its access without widening the constructor's access. You must AT the constructor too: \"%s\"", className,
                         classAt.modifier().toString().toLowerCase(Locale.ROOT) + " " + className + " <init>" + desc);
                 pendingATs.remove(new Target.MethodTarget(className, "<init>", desc));
             }
@@ -294,8 +299,16 @@ class ApplyATsVisitor extends PsiRecursiveElementVisitor {
                 " ".repeat(indent) + modifierString + psiClass.getName() + "() {}");
     }
 
-    private void error(String message, Object... args) {
-        logger.error(message, args);
+    private void error(Transformation transformation, String message, Object... args) {
+        var problem = Problem.builder(AccessTransformersTransformer.INVALID_AT)
+                .contextualLabel(String.format(Locale.ROOT, message, args))
+                .build();
+        AccessTransformersTransformer.reportProblem(problemReporter, transformation, problem);
+
+        var formatArgs = new ArrayList<>();
+        Collections.addAll(formatArgs, args);
+        formatArgs.add(transformation);
+        logger.error(message + " at %s", formatArgs.toArray());
         errored = true;
     }
 
