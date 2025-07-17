@@ -39,6 +39,11 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
      * this may contain the parameters of multiple scopes simultaneously.
      */
     private final Map<PsiParameter, String> activeParameters = new IdentityHashMap<>();
+    /**
+     * The parameter names that have already been used by a method in the outer scope and
+     * therefore cannot be used in nested methods.
+     */
+    private final Set<String> activeNames = new HashSet<>();
 
     public GatherReplacementsVisitor(NamesAndDocsDatabase namesAndDocs,
                                      boolean enableJavadoc,
@@ -134,8 +139,23 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     if (paramData != null && paramData.getName() != null && !PsiHelper.isRecordConstructor(psiMethod)) {
                         var paramName = namer.apply(paramData.getName());
 
+                        // We cannot rename a parameter to name that was already taken in this scope
+                        if (activeNames.contains(paramName)) {
+                            // If we have no conflict resolver then we simply don't try to rename this parameter
+                            if (conflictResolver == null) {
+                                parameterOrder.add(psiParameter.getName());
+                                continue;
+                            }
+
+                            // Keep applying the conflict resolver until the name is no longer used
+                            while (activeNames.contains(paramName)) {
+                                paramName = conflictResolver.apply(paramName);
+                            }
+                        }
+
                         // Replace parameters within the method body
                         activeParameters.put(psiParameter, paramName);
+                        activeNames.add(paramName);
 
                         // Find and replace the parameter identifier
                         replacements.replace(psiParameter.getNameIdentifier(), paramName);
@@ -171,14 +191,17 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     );
                 }
 
-                // When replacements were made and activeParamets were added, we visit the method children here ourselves
+                // When replacements were made and activeParameters were added, we visit the method children here ourselves
                 // and clean up active parameters afterward
                 if (hadReplacements) {
                     try {
                         element.acceptChildren(this);
                     } finally {
                         for (var parameter : parameters) {
-                            activeParameters.remove(parameter);
+                            var nm = activeParameters.remove(parameter);
+                            if (nm != null) {
+                                activeNames.remove(nm);
+                            }
                         }
                     }
                     return;
