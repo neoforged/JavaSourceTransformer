@@ -7,6 +7,7 @@ import com.intellij.psi.PsiCallExpression;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiCodeBlock;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaToken;
@@ -17,6 +18,7 @@ import com.intellij.psi.PsiMethodCallExpression;
 import com.intellij.psi.PsiPrefixExpression;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
+import com.intellij.psi.PsiReturnStatement;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupFormat;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
@@ -66,6 +68,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
     private TargetMethod methodCallTarget;
 
     private int currentParamIndex;
+    private boolean withinReturnStatement;
 
     @Override
     public void visitElement(@NotNull PsiElement element) {
@@ -79,8 +82,12 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             if (met.getBody() != null) {
                 var oldCtx = this.methodContext;
                 this.methodContext = met;
+                var oldInReturn = this.withinReturnStatement;
+                this.withinReturnStatement = false;
+
                 met.getBody().acceptChildren(this);
                 this.methodContext = oldCtx;
+                this.withinReturnStatement = oldInReturn;
             }
             return;
         } else if (element instanceof PsiField fld) {
@@ -105,43 +112,51 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
                     // If any parameter of the method call is directly referencing local var we re-walk the entire method body
                     // and apply unpick with the context of the method being called to all of its assignments (including the initialiser)
-                    if (call.getArgumentList().getExpressions()[i] instanceof PsiReferenceExpression refEx && methodContext != null) {
-                        PsiCodeBlock body = methodContext.getBody();
-                        PsiElement resolved = PsiHelper.resolve(refEx);
-
-                        if (body != null && resolved instanceof PsiLocalVariable localVar) {
-                            if (localVar.getInitializer() != null) {
-                                localVar.getInitializer().accept(limitedDirectVisitor());
-                            }
-
-                            new PsiRecursiveElementVisitor() {
-                                @Override
-                                public void visitElement(@NotNull PsiElement element) {
-                                    if (element instanceof PsiAssignmentExpression as) {
-                                        if (as.getOperationSign().getTokenType() == JavaTokenType.EQ && as.getLExpression() instanceof PsiReferenceExpression ref && PsiHelper.resolve(ref) == localVar && as.getRExpression() != null) {
-                                            as.getRExpression().accept(limitedDirectVisitor());
-                                        }
-                                        return;
-                                    }
-                                    super.visitElement(element);
-                                }
-                            }.visitElement(body);
-                            continue;
-                        }
-                    }
-
-                    // TODO - we need to handle return unpicks
-
-                    this.visitElement(call.getArgumentList().getExpressions()[i]);
+                    acceptPossibleLocalVarReference(call.getArgumentList().getExpressions()[i]);
 
                     currentParamIndex = oldIndex;
                 }
                 calledMethod = oldMet;
             }
             return;
+        } else if (element instanceof PsiReturnStatement returnStatement) {
+            this.withinReturnStatement = true;
+            acceptPossibleLocalVarReference(returnStatement.getReturnValue());
+            this.withinReturnStatement = false;
         }
 
         element.acceptChildren(this);
+    }
+
+    private void acceptPossibleLocalVarReference(PsiExpression expression) {
+        if (expression instanceof PsiReferenceExpression refEx && methodContext != null) {
+            PsiCodeBlock body = methodContext.getBody();
+            PsiElement resolved = PsiHelper.resolve(refEx);
+
+            if (body != null && resolved instanceof PsiLocalVariable localVar) {
+                if (localVar.getInitializer() != null) {
+                    localVar.getInitializer().accept(limitedDirectVisitor());
+                }
+
+                new PsiRecursiveElementVisitor() {
+                    @Override
+                    public void visitElement(@NotNull PsiElement element) {
+                        if (element instanceof PsiAssignmentExpression as) {
+                            if (as.getOperationSign().getTokenType() == JavaTokenType.EQ && as.getLExpression() instanceof PsiReferenceExpression ref && PsiHelper.resolve(ref) == localVar && as.getRExpression() != null) {
+                                as.getRExpression().accept(limitedDirectVisitor());
+                            }
+                            return;
+                        }
+                        super.visitElement(element);
+                    }
+                }.visitElement(body);
+                return;
+            }
+        }
+
+        if (expression != null) {
+            visitElement(expression);
+        }
     }
 
     /**
@@ -182,18 +197,31 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 return false;
             });
         } else if (tok.getTokenType() == JavaTokenType.INTEGER_LITERAL) {
+            var text = tok.getText().toLowerCase(Locale.ROOT);
+
             int val;
-            if (tok.getText().toLowerCase(Locale.ROOT).startsWith("0x")) {
-                val = Integer.parseUnsignedInt(tok.getText().substring(2), 16);
-            } else if (tok.getText().toLowerCase(Locale.ROOT).startsWith("0b")) {
-                val = Integer.parseUnsignedInt(tok.getText().substring(2), 2);
+            if (text.startsWith("0x")) {
+                val = Integer.parseUnsignedInt(text.substring(2), 16);
+            } else if (text.startsWith("0b")) {
+                val = Integer.parseUnsignedInt(text.substring(2), 2);
             } else {
-                val = Integer.parseUnsignedInt(tok.getText());
+                val = Integer.parseUnsignedInt(text);
             }
+
             if (isUnaryMinus(tok)) val = -val;
             replaceLiteral(tok, val, NumberType.INT);
         } else if (tok.getTokenType() == JavaTokenType.LONG_LITERAL) {
-            var val = Long.parseLong(removeSuffix(tok.getText(), 'l'));
+            var text = removeSuffix(tok.getText(), 'l').toLowerCase(Locale.ROOT);
+
+            long val;
+            if (text.startsWith("0x")) {
+                val = Long.parseUnsignedLong(text.substring(2), 16);
+            } else if (text.startsWith("0b")) {
+                val = Long.parseUnsignedLong(text.substring(2), 2);
+            } else {
+                val = Long.parseUnsignedLong(text);
+            }
+
             if (isUnaryMinus(tok)) val = -val;
             replaceLiteral(tok, val, NumberType.LONG);
         } else if (tok.getTokenType() == JavaTokenType.DOUBLE_LITERAL) {
@@ -288,7 +316,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 if (groupId != null) {
                     var groups = collection.getGroups(groupId);
                     if (!groups.isEmpty()) {
-                        for (UnpickCollection.Group group : groups) {
+                        for (var group : groups) {
                             if (apply.test(group)) {
                                 return true;
                             }
@@ -297,6 +325,21 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
                 }
             }
         }
+
+        if (withinReturnStatement && methodContext != null) {
+            var contextDefinitions = collection.getDefinitionsFor(methodContext);
+            if (contextDefinitions != null && contextDefinitions.returnGroup() != null) {
+                var groups = collection.getGroups(contextDefinitions.returnGroup());
+                if (!groups.isEmpty()) {
+                    for (var group : groups) {
+                        if (apply.test(group)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
         return collection.forEachInScope(classContext, methodContext, apply);
     }
 
