@@ -378,6 +378,11 @@ public class EmbeddedTest {
         void testReturns() throws Exception {
             runUnpickTest("returns");
         }
+
+        @Test
+        void testFlags() throws Exception {
+            runUnpickTest("flags");
+        }
     }
 
     protected final void runInterfaceInjectionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {
