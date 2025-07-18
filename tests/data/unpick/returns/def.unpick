@@ -1,0 +1,9 @@
+unpick v3
+
+group int Constant
+    com.example.Example.ONE
+    com.example.Example.TWO
+    com.example.Example.FOUR
+
+target_method com.example.Example getNumber(ZZ)I
+    return Constant

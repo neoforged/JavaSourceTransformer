@@ -373,6 +373,11 @@ public class EmbeddedTest {
         void testLocalVariables() throws Exception {
             runUnpickTest("local_variables");
         }
+
+        @Test
+        void testReturns() throws Exception {
+            runUnpickTest("returns");
+        }
     }
 
     protected final void runInterfaceInjectionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {
