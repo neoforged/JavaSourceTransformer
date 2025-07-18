@@ -54,7 +54,7 @@ public class UnpickCollection {
     private final MultiMap<String, Group> byPackage;
     private final MultiMap<String, Group> byClass;
 
-    private final Map<PsiMethod, List<Group>> methodScopes;
+    private final MultiMap<PsiMethod, Group> methodScopes;
 
     // This list only exists to keep the base elements in memory and prevent them from being GC'd and therefore losing their user data
     // JavaPsiFacade#findClass uses a soft key and soft value map
@@ -74,7 +74,7 @@ public class UnpickCollection {
         byPackage = new MultiMap<>();
         byClass = new MultiMap<>();
 
-        methodScopes = new IdentityHashMap<>();
+        methodScopes = new MultiMap<>(new IdentityHashMap<>());
         baseElements = new ArrayList<>();
 
         groups.forEach((key, defs) -> {
@@ -95,7 +95,7 @@ public class UnpickCollection {
 
                                 for (PsiMethod clsMethod : cls.getMethods()) {
                                     if (clsMethod.getName().equals(method) && PsiHelper.getBinaryMethodSignature(clsMethod).equals(desc)) {
-                                        methodScopes.computeIfAbsent(clsMethod, k -> new ArrayList<>()).add(gr);
+                                        methodScopes.putValue(clsMethod, gr);
                                     }
                                 }
                             }
@@ -131,45 +131,25 @@ public class UnpickCollection {
         }
     }
 
-    public boolean forEachInScope(PsiClass cls, @Nullable PsiMethod scope, Predicate<Group> pred) {
-        if (scope != null) {
-            var metScoped = methodScopes.get(scope);
-            if (metScoped != null) {
-                for (Group group : metScoped) {
-                    if (pred.test(group)) return true;
-                }
-            }
-        }
-
+    public Collection<Group> getClassContext(PsiClass cls) {
         var clsName = cls.getQualifiedName();
         if (clsName != null) {
-            for (Group group : byClass.get(clsName)) {
-                if (pred.test(group)) {
-                    return true;
-                }
-            }
+            return byClass.get(clsName);
         }
+        return List.of();
+    }
 
-        var par = cls.getParent();
-        while (par != null && !(par instanceof PsiJavaFile)) {
-            par = par.getParent();
-        }
 
-        if (par instanceof PsiJavaFile file) {
-            for (Group group : byPackage.get(file.getPackageName())) {
-                if (pred.test(group)) {
-                    return true;
-                }
-            }
-        }
+    public Collection<Group> getPackageContext(PsiJavaFile file) {
+        return byPackage.get(file.getPackageName());
+    }
 
-        for (Group group : global) {
-            if (pred.test(group)) {
-                return true;
-            }
-        }
+    public Collection<Group> getMethodContext(PsiMethod method) {
+        return methodScopes.get(method);
+    }
 
-        return false;
+    public Collection<Group> getGlobalContext() {
+        return global;
     }
 
     @SuppressWarnings("OptionalAssignedToNull")
