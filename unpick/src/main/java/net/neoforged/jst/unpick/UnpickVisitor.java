@@ -15,10 +15,12 @@ import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiLocalVariable;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiMethodCallExpression;
+import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiPrefixExpression;
 import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiReturnStatement;
+import com.intellij.psi.PsiVariable;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupFormat;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
@@ -133,16 +135,17 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             PsiCodeBlock body = methodContext.getBody();
             PsiElement resolved = PsiHelper.resolve(refEx);
 
-            if (body != null && resolved instanceof PsiLocalVariable localVar) {
-                if (localVar.getInitializer() != null) {
-                    localVar.getInitializer().accept(limitedDirectVisitor());
+            if (body != null && (resolved instanceof PsiLocalVariable || resolved instanceof PsiParameter)) {
+                var var = (PsiVariable) resolved;
+                if (var.getInitializer() != null) {
+                    var.getInitializer().accept(limitedDirectVisitor());
                 }
 
                 new PsiRecursiveElementVisitor() {
                     @Override
                     public void visitElement(@NotNull PsiElement element) {
                         if (element instanceof PsiAssignmentExpression as) {
-                            if (as.getOperationSign().getTokenType() == JavaTokenType.EQ && as.getLExpression() instanceof PsiReferenceExpression ref && PsiHelper.resolve(ref) == localVar && as.getRExpression() != null) {
+                            if (as.getOperationSign().getTokenType() == JavaTokenType.EQ && as.getLExpression() instanceof PsiReferenceExpression ref && PsiHelper.resolve(ref) == var && as.getRExpression() != null) {
                                 as.getRExpression().accept(limitedDirectVisitor());
                             }
                             return;
