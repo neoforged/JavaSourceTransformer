@@ -37,6 +37,7 @@ class SourceFileProcessor implements AutoCloseable {
     private final ProblemReporter problemReporter;
 
     private final List<String> ignoredPrefixes = new ArrayList<>();
+    private final List<String> hiddenPrefixes = new ArrayList<>();
 
     public SourceFileProcessor(Logger logger, ProblemReporter problemReporter) throws IOException {
         this.logger = logger;
@@ -118,13 +119,21 @@ class SourceFileProcessor implements AutoCloseable {
                     lastModified = FileTime.from(Instant.now());
                 }
             }
-            sink.putFile(entry.relativePath(), lastModified, content);
+            if (!isHidden(entry.relativePath())) sink.putFile(entry.relativePath(), lastModified, content);
         }
         return true;
     }
 
     private boolean isIgnored(String relativePath) {
-        for (String ignoredPrefix : ignoredPrefixes) {
+        return isRelativePathIn(relativePath, this.ignoredPrefixes);
+    }
+
+    private boolean isHidden(String relativePath) {
+        return isRelativePathIn(relativePath, this.hiddenPrefixes);
+    }
+
+    private boolean isRelativePathIn(String relativePath, List<String> prefixes) {
+        for (String ignoredPrefix : prefixes) {
             if (relativePath.startsWith(ignoredPrefix)) {
                 return true;
             }
@@ -193,6 +202,12 @@ class SourceFileProcessor implements AutoCloseable {
     public void addIgnoredPrefix(String ignoredPrefix) {
         System.out.println("Not transforming entries starting with " + ignoredPrefix);
         this.ignoredPrefixes.add(ignoredPrefix);
+    }
+
+    public void addHiddenPrefix(String hiddenPrefix) {
+        System.out.println("Not reading entries starting with " + hiddenPrefix);
+        this.ignoredPrefixes.add(hiddenPrefix);
+        this.hiddenPrefixes.add(hiddenPrefix);
     }
 
     @Override
