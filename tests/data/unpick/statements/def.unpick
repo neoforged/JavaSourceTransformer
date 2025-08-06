@@ -1,0 +1,11 @@
+unpick v3
+
+group int Flags
+    @flags
+    com.example.Example.ONE
+    com.example.Example.TWO
+    com.example.Example.THREE
+    com.example.Example.FOUR
+
+target_method com.example.Example accept(I)V
+    param 0 Flags

@@ -1,0 +1,21 @@
+unpick v3
+
+group int HEXInt
+    @format hex
+target_method com.example.Example acceptHex(I)V
+    param 0 HEXInt
+
+group int BINInt
+    @format binary
+target_method com.example.Example acceptBin(I)V
+    param 0 BINInt
+
+group int OCTInt
+    @format octal
+target_method com.example.Example acceptOct(I)V
+    param 0 OCTInt
+
+group int CharInt
+    @format char
+target_method com.example.Example acceptChar(C)V
+    param 0 CharInt

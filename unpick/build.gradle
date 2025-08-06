@@ -1,0 +1,8 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    implementation project(':api')
+    implementation 'net.fabricmc.unpick:unpick-format-utils:3.0.0-beta.8'
+}

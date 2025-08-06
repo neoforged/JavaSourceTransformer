@@ -1,0 +1,14 @@
+unpick v3
+
+group int
+    @scope class com.example.Example
+    com.example.Example.V1
+    com.example.Example.V2
+
+group int
+    @scope method com.Outsider anotherExecute ()V
+    com.Outsider.DIFFERENT_CONST
+
+group int
+    @scope package com.example
+    com.example.Example.FOUR

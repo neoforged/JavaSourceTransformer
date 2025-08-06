@@ -34,6 +34,7 @@ dependencies {
     include project(":parchment")
     include project(":accesstransformers")
     include project(':interfaceinjection')
+    include project(':unpick')
 
     testImplementation platform("org.junit:junit-bom:$junit_version")
     testImplementation 'org.junit.jupiter:junit-jupiter'

@@ -1,0 +1,16 @@
+unpick v3
+
+group String
+    com.example.Constants.VERSION
+
+group float
+    @strict
+    java.lang.Math.PI
+    java.lang.Math.PI / 3
+
+group float
+    com.example.Constants.FLOAT_CT
+
+group long
+    com.example.Constants.LONG_VAL
+    (com.example.Constants.LONG_VAL + 1) * 2

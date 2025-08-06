@@ -1,0 +1,10 @@
+unpick v3
+
+group int Color
+    @format hex
+    com.example.Example.RED
+    com.example.Example.PURPLE
+    com.example.Example.PINK
+
+target_method com.example.Example setColor(I)V
+    param 0 Color

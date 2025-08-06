@@ -357,6 +357,44 @@ public class EmbeddedTest {
         }
     }
 
+    @Nested
+    class Unpick {
+        @Test
+        void testConst() throws Exception {
+            runUnpickTest("const");
+        }
+
+        @Test
+        void testFormats() throws Exception {
+            runUnpickTest("formats");
+        }
+
+        @Test
+        void testScoped() throws Exception {
+            runUnpickTest("scoped");
+        }
+
+        @Test
+        void testLocalVariables() throws Exception {
+            runUnpickTest("local_variables");
+        }
+
+        @Test
+        void testReturns() throws Exception {
+            runUnpickTest("returns");
+        }
+
+        @Test
+        void testFlags() throws Exception {
+            runUnpickTest("flags");
+        }
+
+        @Test
+        void testStatements() throws Exception {
+            runUnpickTest("statements");
+        }
+    }
+
     protected final void runInterfaceInjectionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {
         var stub = tempDir.resolve("jst-" + testDirName + "-stub.jar");
         testDirName = "interfaceinjection/" + testDirName;
@@ -371,6 +409,17 @@ public class EmbeddedTest {
         if (Files.exists(testDir.resolve("expected_stub"))) {
             assertZipEqualsDir(stub, testDir.resolve("expected_stub"));
         }
+    }
+
+    protected final void runUnpickTest(String testDirName, String... additionalArgs) throws Exception {
+        testDirName = "unpick/" + testDirName;
+        var testDir = testDataRoot.resolve(testDirName);
+        var inputPath = testDir.resolve("def.unpick");
+
+        var args = new ArrayList<>(Arrays.asList("--enable-unpick", "--unpick-data", inputPath.toString()));
+        args.addAll(Arrays.asList(additionalArgs));
+
+        runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));
     }
 
     protected final void runATTest(String testDirName, final String... extraArgs) throws Exception {
