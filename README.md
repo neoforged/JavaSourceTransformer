@@ -53,24 +53,27 @@ To create the executable jar with your custom transformer, you should shadow the
 Note that this tool is not intended to be run by users directly. Rather it is integrated into
 the [NeoGradle](https://github.com/neoforged/NeoGradle) build process.
 
-It can be invoked as a standalone executable Jar-File. Java 17 is required.
+It can be invoked as a standalone executable Jar-File. Java 21 is required.
 
 ```
-Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
+Usage: jst [-hV] [--debug] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
            [--max-queue-depth=<maxQueueDepth>] [--out-format=<outputFormat>]
-           [--classpath=<addToClasspath>]... [--ignore-prefix=<ignoredPrefixes>]...
-           [--enable-parchment --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc]
+           [--problems-report=<problemsReport>] [--classpath=<addToClasspath>]...
+           [--ignore-prefix=<ignoredPrefixes>]... [--enable-parchment
+           --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc]
            [--parchment-conflict-prefix=<conflictPrefix>]] [--enable-accesstransformers
            --access-transformer=<atFiles> [--access-transformer=<atFiles>]...
            [--access-transformer-validation=<validation>]] [--enable-interface-injection
            [--interface-injection-stubs=<stubOut>]
            [--interface-injection-marker=<annotationMarker>]
-           [--interface-injection-data=<paths>]...] INPUT OUTPUT
+           [--interface-injection-data=<paths>]...] [--enable-unpick [--unpick-data=<paths>]...]
+           INPUT OUTPUT
       INPUT                Path to a single Java-file, a source-archive or a folder containing the
                              source to transform.
       OUTPUT               Path to where the resulting source should be placed.
       --classpath=<addToClasspath>
                            Additional classpath entries to use. Is combined with --libraries-list.
+      --debug              Print additional debugging information
   -h, --help               Show this help message and exit.
       --ignore-prefix=<ignoredPrefixes>
                            Do not apply transformations to paths that start with any of these
@@ -89,6 +92,8 @@ Usage: jst [-hV] [--in-format=<inputFormat>] [--libraries-list=<librariesList>]
       --out-format=<outputFormat>
                            Specify the format of OUTPUT explicitly. Allows the same options as
                              --in-format.
+      --problems-report=<problemsReport>
+                           Write problems to this report file.
   -V, --version            Print version information and exit.
 Plugin - parchment
       --enable-parchment   Enable parchment
@@ -116,6 +121,10 @@ Plugin - interface-injection
                              injected interfaces
       --interface-injection-stubs=<stubOut>
                            The path to a zip to save interface stubs in
+Plugin - unpick
+      --enable-unpick      Enable unpick
+      --unpick-data=<paths>
+                           The paths to read unpick definition files from
 ```
 
 ## Licenses
