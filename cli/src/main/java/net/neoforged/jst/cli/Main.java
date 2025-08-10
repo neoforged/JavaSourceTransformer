@@ -39,6 +39,9 @@ public class Main implements Callable<Integer> {
     @CommandLine.Option(names = "--ignore-prefix", description = "Do not apply transformations to paths that start with any of these prefixes.")
     List<String> ignoredPrefixes = new ArrayList<>();
 
+    @CommandLine.Option(names = "--hidden-prefix", description = "Do not process or emit paths that start with any of these prefixes.")
+    List<String> hiddenPrefixes = new ArrayList<>();
+
     @CommandLine.Option(names = "--classpath", description = "Additional classpath entries to use. Is combined with --libraries-list.", converter = ClasspathConverter.class)
     List<Path> addToClasspath = new ArrayList<>();
 
@@ -86,6 +89,10 @@ public class Main implements Callable<Integer> {
             }
             for (String ignoredPrefix : ignoredPrefixes) {
                 processor.addIgnoredPrefix(ignoredPrefix);
+            }
+            for (String hiddenPrefix : hiddenPrefixes) {
+                processor.addIgnoredPrefix(hiddenPrefix);
+                processor.addHiddenPrefix(hiddenPrefix);
             }
 
             processor.setMaxQueueDepth(maxQueueDepth);
