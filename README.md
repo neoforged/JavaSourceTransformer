@@ -38,7 +38,7 @@ The interfaces can have generic parameter declarations. Assuming the target clas
 we could implement `Supplier<T>` using `java/util/function/Supplier<T>`.
 
 > [!NOTE]  
-> Generics are *copied verbatim*. If you need the generics to reference a class, please use its fully qualified name (e.g. `java/util/function/Supplier<java.util.concurrent.atomic.AtomicInteger>`).
+> Generics are *copied verbatim*. If you need the generics to reference a class, please use its fully qualified name (e.g. `java/util/function/Supplier<java.util.concurrent.atomic.AtomicInteger>`). As an exception to this rule, inner classes should be separated by `$` (e.g. `java/util/function/Supplier<java.util.Map$Entry>`).
 
 ### Custom transformers
 Third parties can use JST to implement their source file own transformations.  

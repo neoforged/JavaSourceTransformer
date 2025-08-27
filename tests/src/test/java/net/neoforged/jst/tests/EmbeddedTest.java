@@ -350,6 +350,11 @@ public class EmbeddedTest {
         void testGenerics() throws Exception {
             runInterfaceInjectionTest("generics", tempDir);
         }
+
+        @Test
+        void testNestedGenericStubs() throws Exception {
+            runInterfaceInjectionTest("nested_generic_stubs", tempDir);
+        }
     }
 
     @Nested

@@ -12,9 +12,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.zip.ZipEntry;
@@ -50,14 +52,71 @@ class StubStore {
                 if (generics.isBlank()) {
                     logger.error("Interface injection %s has blank type parameters", jvm);
                 } else {
-                    // Ignore any nested generics when counting the amount of parameters the interface has
-                    typeParameterCount = generics.replaceAll("<[^>]*>", "").split(",").length;
+                    var reader = new StringReader(generics);
+                    List<String> typeArgs = new ArrayList<>();
+                    while (reader.hasNext()) {
+                        typeArgs.add(stubGenericArguments(reader));
+                        reader.skipWhitespace();
+                        if (reader.hasNext() && reader.next() != ',') {
+                            logger.error("Interface injection generics declaration %s is invalid", generics);
+                        }
+                    }
+
+                    generics = String.join(", ", typeArgs);
+                    typeParameterCount = typeArgs.size();
                 }
             }
             jvm = jvm.substring(0, genericsStart);
         }
 
         return new InterfaceInformation(createStub(jvm, typeParameterCount), generics);
+    }
+
+    private static final Pattern BOUNDED_WILDCARD_PATTERN = Pattern.compile("\\?\\s+(extends|super)\\s+(.+)");
+
+    private String stubGenericArguments(StringReader generics) {
+        StringBuilder typeName = new StringBuilder();
+        List<String> genericArgs = new ArrayList<>();
+        while (generics.hasNext() && generics.peek() != ',' && generics.peek() != '>') {
+            var ch = generics.next();
+            if (ch == '<') {
+                do {
+                    genericArgs.add(stubGenericArguments(generics));
+                    generics.skipWhitespace();
+                } while (generics.next() != '>'); // The next character can either be a comma or a >. If it's a > we exit the generic declaration, otherwise we consume the comma and stub the next argument
+                break; // No point in continuing to parse if we found and parsed the nested generic arguments
+            } else {
+                typeName.append(ch);
+            }
+        }
+
+        String base;
+
+        var type = typeName.toString().trim();
+        // Within bounded wildcards (? extends X) or (? super X) we need to make sure we stub the type
+        var boundedMatcher = BOUNDED_WILDCARD_PATTERN.matcher(type);
+        if (boundedMatcher.matches()) {
+            var name = boundedMatcher.group(2);
+            base = "? " + boundedMatcher.group(1) + " " + possiblyStubTypeName(name, genericArgs.size());
+        } else {
+            base = possiblyStubTypeName(type, genericArgs.size());
+        }
+
+        if (genericArgs.isEmpty()) {
+            return base;
+        } else {
+            return base + "<" + String.join(", ", genericArgs) + ">";
+        }
+    }
+
+    private String possiblyStubTypeName(String name, int genericCount) {
+        // If the type argument contains a dot we assume it is a class, so we have to stub it
+        if (name.contains(".")) {
+            return createStub(name.replace('.', '/'), genericCount);
+        } else {
+            // Otherwise, it could be a wildcard or it could be another type parameter
+            return name;
+        }
     }
 
     private synchronized String createStub(String jvm, int typeParameterCount) {
@@ -140,6 +199,36 @@ class StubStore {
         @Override
         public String toString() {
             return generics.isBlank() ? interfaceDeclaration : interfaceDeclaration + "<" + generics + ">";
+        }
+    }
+
+    private static class StringReader {
+        private final String string;
+        private int i = -1;
+
+        private StringReader(String string) {
+            this.string = string;
+        }
+
+        public boolean hasNext() {
+            return i < string.length() - 1;
+        }
+
+        public char peek() {
+            return string.charAt(i + 1);
+        }
+
+        public char next() {
+            return string.charAt(++i);
+        }
+
+        public void skipWhitespace() {
+            while (hasNext() && peek() == ' ') next();
+        }
+
+        @Override
+        public String toString() {
+            return string;
         }
     }
 }
