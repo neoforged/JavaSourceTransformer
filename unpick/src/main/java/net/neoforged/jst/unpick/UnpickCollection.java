@@ -270,8 +270,8 @@ public class UnpickCollection {
                     };
                 }
 
-                if (lhs instanceof String lS && rhs instanceof String rS && binaryExpression.operator == BinaryExpression.Operator.ADD) {
-                    return lS + rS;
+                if ((lhs instanceof String || rhs instanceof String) && binaryExpression.operator == BinaryExpression.Operator.ADD) {
+                    return lhs.toString() + rhs.toString();
                 }
 
                 throw new IllegalArgumentException("Cannot resolve expression: " + binaryExpression + ". Operands of type " + lhs.getClass() + " and " + rhs.getClass() + " do not support operator " + binaryExpression.operator);
@@ -283,7 +283,7 @@ public class UnpickCollection {
         private static Object cast(Object in, DataType type) {
             return switch (type) {
                 case BYTE -> ((Number) in).byteValue();
-                case CHAR -> Character.valueOf((char)((Number) in).byteValue());
+                case CHAR -> Character.valueOf((char)((Number) in).shortValue());
                 case SHORT -> ((Number) in).shortValue();
                 case INT -> ((Number) in).intValue();
                 case LONG -> ((Number) in).longValue();

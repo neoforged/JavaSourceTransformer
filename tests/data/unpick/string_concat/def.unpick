@@ -1,0 +1,6 @@
+unpick v3
+
+group String
+    com.example.Example.I1 + com.example.Example.S
+    (com.example.Example._S + com.example.Example.D1) + com.example.Example.I1
+    com.example.Example.S + com.example.Example._S

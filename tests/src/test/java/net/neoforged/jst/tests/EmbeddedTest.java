@@ -393,6 +393,11 @@ public class EmbeddedTest {
         void testStatements() throws Exception {
             runUnpickTest("statements");
         }
+
+        @Test
+        void testStringConcat() throws Exception {
+            runUnpickTest("string_concat");
+        }
     }
 
     protected final void runInterfaceInjectionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {
