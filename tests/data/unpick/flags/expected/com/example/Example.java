@@ -15,6 +15,7 @@ public class Example {
 
         applyFlags(~(Example.FLAG_1 | Example.FLAG_2));
         applyFlags(~Example.FLAG_4);
+        applyFlags((Example.FLAG_4 * 21) | Example.FLAG_3);
     }
 
     public static void applyFlags(int flags) {}

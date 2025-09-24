@@ -2,6 +2,7 @@ unpick v3
 
 group int Flags
     @flags
+    com.example.Example.FLAG_4 * 21
     com.example.Example.FLAG_1
     com.example.Example.FLAG_2
     com.example.Example.FLAG_3

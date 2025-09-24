@@ -400,6 +400,11 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
         return false;
     }
 
+    private String writeFlag(Expression expression) {
+        // Only direct literals or fields are guaranteed to not need parenthesis
+        return (expression instanceof LiteralExpression || expression instanceof FieldExpression) ? write(expression) : "(" + write(expression) + ")";
+    }
+
     private String write(Expression expression) {
         StringBuilder s = new StringBuilder();
         expression.accept(new ExpressionVisitor() {
@@ -528,10 +533,10 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
         boolean paren = false;
 
-        StringBuilder replacement = new StringBuilder(write(constants.getFirst()));
+        StringBuilder replacement = new StringBuilder(writeFlag(constants.getFirst()));
         for (int i = 1; i < constants.size(); i++) {
             replacement.append(" | ");
-            replacement.append(write(constants.get(i)));
+            replacement.append(writeFlag(constants.get(i)));
             paren = true;
         }
 
