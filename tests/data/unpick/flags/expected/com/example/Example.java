@@ -12,6 +12,9 @@ public class Example {
         applyFlags(Example.FLAG_1 | Example.FLAG_2);
         applyFlags(Example.FLAG_3 | Example.FLAG_4 | Example.FLAG_1 | 129);
         applyFlags(-1);
+
+        applyFlags(~(Example.FLAG_1 | Example.FLAG_2));
+        applyFlags(~Example.FLAG_4);
     }
 
     public static void applyFlags(int flags) {}

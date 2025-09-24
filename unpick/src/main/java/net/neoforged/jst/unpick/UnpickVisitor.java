@@ -526,18 +526,22 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
         long residual = negated ? negatedResidual : orResidual;
 
+        boolean paren = false;
+
         StringBuilder replacement = new StringBuilder(write(constants.getFirst()));
         for (int i = 1; i < constants.size(); i++) {
             replacement.append(" | ");
             replacement.append(write(constants.get(i)));
+            paren = true;
         }
 
         if (residual != 0) {
             replacement.append(" | ").append(residual);
+            paren = true;
         }
 
         if (negated) {
-            return "~" + replacement;
+            return "~" + (paren ? ("(" + replacement + ")") : replacement);
         }
 
         return replacement.toString();
