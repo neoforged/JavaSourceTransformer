@@ -8,5 +8,15 @@ group int Flags
     com.example.Example.FLAG_3
     com.example.Example.FLAG_4
 
+group int FlagsHex
+    @flags
+    @format hex
+    com.example.Example.FLAG_1
+    com.example.Example.FLAG_3
+    com.example.Example.FLAG_4
+
 target_method com.example.Example applyFlags(I)V
     param 0 Flags
+
+target_method com.example.Example applyHexFlags(I)V
+    param 0 FlagsHex

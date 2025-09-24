@@ -16,7 +16,10 @@ public class Example {
         applyFlags(~(Example.FLAG_1 | Example.FLAG_2));
         applyFlags(~Example.FLAG_4);
         applyFlags((Example.FLAG_4 * 21) | Example.FLAG_3);
+
+        applyHexFlags(Example.FLAG_3 | Example.FLAG_4 | Example.FLAG_1 | 0x81);
     }
 
     public static void applyFlags(int flags) {}
+    public static void applyHexFlags(int flags) {}
 }

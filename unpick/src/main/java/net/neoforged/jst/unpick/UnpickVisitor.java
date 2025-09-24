@@ -508,7 +508,11 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             }
             case CHAR -> "'" + ((char) value.intValue()) + "'";
 
-            default -> value.toString();
+            default -> switch (value) {
+                case Long l -> l + "l";
+                case Float f -> f + "f";
+                default -> value.toString();
+            };
         };
     }
 
@@ -541,7 +545,14 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
         }
 
         if (residual != 0) {
-            replacement.append(" | ").append(residual);
+            boolean isLong = residual < Integer.MIN_VALUE || residual > Integer.MAX_VALUE;
+
+            replacement.append(" | ");
+
+            // The formatAs method appends l automatically to any long value
+            // so if it's an int we downcast it to avoid it
+            replacement.append(formatAs(isLong ? (Number) residual : (Number) (int) residual, Objects.requireNonNullElse(group.format(), GroupFormat.DECIMAL)));
+
             paren = true;
         }
 

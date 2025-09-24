@@ -16,7 +16,10 @@ public class Example {
         applyFlags(-7);
         applyFlags(-17);
         applyFlags(344);
+
+        applyHexFlags(155);
     }
 
     public static void applyFlags(int flags) {}
+    public static void applyHexFlags(int flags) {}
 }
