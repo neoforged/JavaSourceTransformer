@@ -252,7 +252,7 @@ public class UnpickCollection {
                 var rhs = resolveConstant(binaryExpression.rhs, facade, scope);
 
                 if (lhs instanceof Number l && rhs instanceof Number r) {
-                    var type = NumberType.TYPES.get(l.getClass());
+                    var type = NumberType.widest(NumberType.TYPES.get(l.getClass()), NumberType.TYPES.get(r.getClass()));
                     return switch (binaryExpression.operator) {
                         case ADD -> type.add(l, r);
                         case DIVIDE -> type.divide(l, r);

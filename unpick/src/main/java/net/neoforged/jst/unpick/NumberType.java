@@ -361,4 +361,18 @@ public enum NumberType {
     public Number rshiftUnsigned(Number a, Number b) {
         return a.intValue() >>> b.intValue();
     }
+
+    public boolean canWidenFrom(NumberType other) {
+        if (other == this) return true;
+        for (NumberType from : widenFrom) {
+            if (other == from || from.canWidenFrom(other)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static NumberType widest(NumberType a, NumberType b) {
+        return a.canWidenFrom(b) ? a : b;
+    }
 }
