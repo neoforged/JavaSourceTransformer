@@ -1,6 +1,7 @@
 package net.neoforged.jst.api;
 
 import com.intellij.lang.jvm.types.JvmPrimitiveTypeKind;
+import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiExpression;
@@ -14,6 +15,7 @@ import com.intellij.psi.PsiTypeParameter;
 import com.intellij.psi.PsiTypes;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.SyntaxTraverser;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.psi.util.ClassUtil;
@@ -254,5 +256,18 @@ public final class PsiHelper {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    @Nullable
+    public static PsiClass findClass(JavaPsiFacade facade, String name, GlobalSearchScope scope) {
+        var inner = name.split("\\$");
+        var cls = facade.findClass(inner[0], scope);
+        if (cls == null) return null;
+
+        for (int i = 1; i < inner.length; i++) {
+            cls = cls.findInnerClassByName(inner[i], true);
+            if (cls == null) return null;
+        }
+        return cls;
     }
 }

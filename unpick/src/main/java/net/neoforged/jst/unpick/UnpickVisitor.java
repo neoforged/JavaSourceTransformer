@@ -22,6 +22,7 @@ import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiReturnStatement;
 import com.intellij.psi.PsiVariable;
+import com.intellij.psi.util.ClassUtil;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupFormat;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
@@ -361,7 +362,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
     private boolean checkNotRecursive(Expression expression) {
         if (fieldContext != null && fieldContext.getContainingClass() != null && expression instanceof FieldExpression fld) {
-            return !(fld.className.equals(fieldContext.getContainingClass().getQualifiedName()) && Objects.equals(fld.fieldName, fieldContext.getName()));
+            return !(fld.className.equals(ClassUtil.getJVMClassName(fieldContext.getContainingClass())) && Objects.equals(fld.fieldName, fieldContext.getName()));
         }
         return true;
     }
@@ -416,7 +417,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
         expression.accept(new ExpressionVisitor() {
             @Override
             public void visitFieldExpression(FieldExpression fieldExpression) {
-                var cls = imports().importClass(fieldExpression.className);
+                var cls = imports().importClass(fieldExpression.className.replace("$", "."));
                 s.append(cls).append('.').append(fieldExpression.fieldName);
             }
 

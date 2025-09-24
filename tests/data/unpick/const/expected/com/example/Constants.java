@@ -6,4 +6,10 @@ public class Constants {
     public static final float FLOAT_CT = 2.5;
 
     public static final long LONG_VAL = 34L;
+
+    public static class Inner1 {
+        public static class Inner2 {
+            public static final String VALUE = "value";
+        }
+    }
 }

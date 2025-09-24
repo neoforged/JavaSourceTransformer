@@ -12,6 +12,7 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiType;
 import com.intellij.psi.PsiTypes;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.util.ClassUtil;
 import com.intellij.util.containers.MultiMap;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
@@ -40,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
 
 public class UnpickCollection {
     private static final Key<Optional<TargetMethod>> UNPICK_DEFINITION = Key.create("unpick.method_definition");
@@ -90,7 +90,7 @@ public class UnpickCollection {
                             case GroupScope.Package(var packageName) -> byPackage.putValue(packageName, gr);
                             case GroupScope.Class(var cls) -> byClass.putValue(cls, gr);
                             case GroupScope.Method(var className, var method, var desc) -> {
-                                var cls = facade.findClass(className, projectScope);
+                                var cls = PsiHelper.findClass(facade, className, projectScope);
                                 if (cls == null) return;
 
                                 for (PsiMethod clsMethod : cls.getMethods()) {
@@ -106,7 +106,7 @@ public class UnpickCollection {
         });
 
         for (var field : fields) {
-            var cls = facade.findClass(field.className(), projectScope);
+            var cls = PsiHelper.findClass(facade, field.className(), projectScope);
             if (cls == null) continue;
 
             var fld = cls.findFieldByName(field.fieldName(), true);
@@ -117,7 +117,7 @@ public class UnpickCollection {
         }
 
         for (var method : methods) {
-            var cls = facade.findClass(method.className(), projectScope);
+            var cls = PsiHelper.findClass(facade, method.className(), projectScope);
             if (cls == null) continue;
 
             possibleTargetNames.add(method.methodName());
@@ -132,7 +132,7 @@ public class UnpickCollection {
     }
 
     public Collection<Group> getClassContext(PsiClass cls) {
-        var clsName = cls.getQualifiedName();
+        var clsName = ClassUtil.getJVMClassName(cls);
         if (clsName != null) {
             return byClass.get(clsName);
         }
@@ -217,7 +217,7 @@ public class UnpickCollection {
 
         private static Object resolveConstant(Expression expression, JavaPsiFacade facade, GlobalSearchScope scope) {
             if (expression instanceof FieldExpression fieldEx) {
-                var clazz = facade.findClass(fieldEx.className, scope);
+                var clazz = PsiHelper.findClass(facade, fieldEx.className, scope);
                 if (clazz != null) {
                     for (PsiField field : clazz.getAllFields()) {
                         if (fieldEx.isStatic != field.hasModifier(JvmModifier.STATIC)) continue;

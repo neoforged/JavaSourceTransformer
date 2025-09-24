@@ -2,6 +2,7 @@ unpick v3
 
 group String
     com.example.Constants.VERSION
+    com.example.Constants$Inner1$Inner2.VALUE
 
 group float
     @strict

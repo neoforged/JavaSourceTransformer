@@ -4,7 +4,7 @@ public class Uses {
     public String fld = "1.21.4";
 
     void run() {
-        String s = "1.21.4" + "2";
+        String s = "1.21.4" + "2" + "value";
 
         float f = 3.141592653589793f;
 
