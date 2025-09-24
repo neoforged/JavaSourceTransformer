@@ -306,7 +306,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             // We'll try a direct constant first, even if it's a flag
             var ct = group.constants().get(number);
             if (ct != null && checkNotRecursive(ct)) {
-                replacements.replace(element, write(ct));
+                replacements.replace(element, writeOptionallySurround(ct));
                 element.putUserData(UNPICK_WAS_REPLACED, true);
                 replaceMinus(element);
                 return true;
@@ -400,8 +400,13 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
         return false;
     }
 
-    private String writeFlag(Expression expression) {
-        // Only direct literals or fields are guaranteed to not need parenthesis
+    /**
+     * Write the given expression, optionally surrounding it with parenthesis if
+     * it cannot be safely assumed not to need them.
+     * <p>
+     * Only literals or top-level fields will not be surrounded.
+     */
+    private String writeOptionallySurround(Expression expression) {
         return (expression instanceof LiteralExpression || expression instanceof FieldExpression) ? write(expression) : "(" + write(expression) + ")";
     }
 
@@ -537,10 +542,10 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
 
         boolean paren = false;
 
-        StringBuilder replacement = new StringBuilder(writeFlag(constants.getFirst()));
+        StringBuilder replacement = new StringBuilder(writeOptionallySurround(constants.getFirst()));
         for (int i = 1; i < constants.size(); i++) {
             replacement.append(" | ");
-            replacement.append(writeFlag(constants.get(i)));
+            replacement.append(writeOptionallySurround(constants.get(i)));
             paren = true;
         }
 
