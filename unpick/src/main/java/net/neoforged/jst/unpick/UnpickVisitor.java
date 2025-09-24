@@ -339,7 +339,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             // Finally we try to apply non-strict widening from lower number types
             for (NumberType from : type.widenFrom) {
                 var lower = from.cast(number);
-                if (lower.doubleValue() == number.doubleValue()) {
+                if (lower.doubleValue() == number.doubleValue() && lower.longValue() == number.longValue()) {
                     if (replaceLiteral(element, lower, from, true)) {
                         return true;
                     }
