@@ -1,6 +1,7 @@
 package net.neoforged.jst.unpick;
 
 import com.intellij.openapi.util.Key;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.PsiAssignmentExpression;
 import com.intellij.psi.PsiCallExpression;
@@ -244,10 +245,10 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
         if (Boolean.TRUE.equals(tok.getUserData(UNPICK_WAS_REPLACED))) return;
 
         if (tok.getTokenType() == JavaTokenType.STRING_LITERAL) {
-            var val = tok.getText().substring(1); // Remove starting "
-            final var finalVal = val.substring(0, val.length() - 1); // Remove leading "
+            // Remove starting and leading " and unescape characters to turn from the source representation to the runtime one
+            final String value  = StringUtil.unescapeStringCharacters(StringUtil.unquoteString(tok.getText()));
             forInScope(group -> {
-                var ct = group.constants().get(finalVal);
+                var ct = group.constants().get(value);
                 if (ct != null && checkNotRecursive(ct)) {
                     replacements.replace(tok, write(ct));
                     tok.putUserData(UNPICK_WAS_REPLACED, true);
@@ -429,7 +430,7 @@ public class UnpickVisitor extends PsiRecursiveElementVisitor {
             @Override
             public void visitLiteralExpression(LiteralExpression literalExpression) {
                 if (literalExpression.literal instanceof Literal.String(String value)) {
-                    s.append('\"').append(value.replace("\"", "\\\"")).append('\"');
+                    s.append('\"').append(StringUtil.escapeStringCharacters(value)).append('\"');
                 } else if (literalExpression.literal instanceof Literal.Integer i) {
                     s.append(i.value());
                 } else if (literalExpression.literal instanceof Literal.Long l) {

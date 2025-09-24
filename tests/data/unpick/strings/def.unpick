@@ -1,0 +1,6 @@
+unpick v3
+
+group String
+    com.example.Example.S
+    com.example.Example.S2 + com.example.Example.S
+    com.example.Example.S + "\" adf"
