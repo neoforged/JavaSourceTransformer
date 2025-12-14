@@ -79,6 +79,10 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
                 .sorted(Comparator.naturalOrder())
                 .collect(Collectors.joining(", "));
 
+        if (interfaceImplementation.isEmpty()) {
+            return; // Nothing to do, all injected interfaces are already present
+        }
+
         if (implementsList.getChildren().length == 0) {
             StringBuilder text = new StringBuilder();
 
