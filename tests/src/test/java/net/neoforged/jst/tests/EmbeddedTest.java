@@ -317,6 +317,11 @@ public class EmbeddedTest {
         }
 
         @Test
+        void testDeduplication() throws Exception {
+            runInterfaceInjectionTest("deduplication", tempDir);
+        }
+
+        @Test
         void testAdditiveInjection() throws Exception {
             runInterfaceInjectionTest("additive_injection", tempDir);
         }
