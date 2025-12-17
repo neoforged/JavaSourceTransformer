@@ -3,7 +3,9 @@ package net.neoforged.jst.cli.intellij;
 import com.intellij.core.CoreApplicationEnvironment;
 import com.intellij.core.JavaCoreApplicationEnvironment;
 import com.intellij.core.JavaCoreProjectEnvironment;
+import com.intellij.lang.MetaLanguage;
 import com.intellij.lang.java.JavaLanguage;
+import com.intellij.lang.jvm.JvmMetaLanguage;
 import com.intellij.lang.jvm.facade.JvmElementProvider;
 import com.intellij.mock.MockProject;
 import com.intellij.openapi.Disposable;
@@ -57,12 +59,12 @@ public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseab
         this.logger = logger;
         System.setProperty("java.awt.headless", "true");
 
-        tempDir = Files.createTempDirectory("jst");
+        tempDir = Files.createTempDirectory("jst").toAbsolutePath();
         this.rootDisposable = Disposer.newDisposable();
-        System.setProperty("idea.home.path", tempDir.toAbsolutePath().toString());
+        System.setProperty("idea.home.path", tempDir.toString());
 
         // IDEA requires a config directory, even if it's empty
-        PathManager.setExplicitConfigPath(tempDir.toAbsolutePath().toString());
+        PathManager.setExplicitConfigPath(tempDir.toString());
         Registry.markAsLoaded(); // Avoids warnings about config not being loaded
 
         var appEnv = new JavaCoreApplicationEnvironment(rootDisposable) {
@@ -179,7 +181,20 @@ public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseab
         CoreApplicationEnvironment.registerExtensionPoint(appExtensions, PsiAugmentProvider.EP_NAME, PsiAugmentProvider.class);
         CoreApplicationEnvironment.registerExtensionPoint(appExtensions, JavaModuleSystem.EP_NAME, JavaModuleSystem.class);
         CoreApplicationEnvironment.registerExtensionPoint(appExtensions, TreeGenerator.EP_NAME, TreeGenerator.class);
+        CoreApplicationEnvironment.registerExtensionPoint(appExtensions, MetaLanguage.EP_NAME, MetaLanguage.class);
+
         appExtensions.getExtensionPoint(TreeGenerator.EP_NAME).registerExtension(new JavaTreeGenerator(), rootDisposable);
+        appExtensions.getExtensionPoint(MetaLanguage.EP_NAME).registerExtension(createInstance(JvmMetaLanguage.class), rootDisposable);
+    }
+
+    private static <T> T createInstance(Class<T> clazz) {
+        try {
+            var ctor = clazz.getDeclaredConstructor();
+            ctor.setAccessible(true);
+            return ctor.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }
