@@ -1,6 +1,5 @@
 package net.neoforged.jst.tests;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
@@ -235,6 +234,11 @@ public class EmbeddedTest {
         @Test
         void testConflicts() throws Exception {
             runParchmentTest("conflicts", "mappings.tsrg", "--parchment-conflict-prefix=p_");
+        }
+
+        @Test
+        void testJavadocOnly() throws Exception {
+            runParchmentTest("javadoc-only", "parchment.json", "--no-parchment-parameters");
         }
     }
 

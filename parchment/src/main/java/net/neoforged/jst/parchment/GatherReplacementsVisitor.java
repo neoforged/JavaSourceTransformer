@@ -23,13 +23,13 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
 class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
     private final NamesAndDocsDatabase namesAndDocs;
     private final boolean enableJavadoc;
+    private final boolean enableParameters;
     @Nullable
     private final UnaryOperator<String> conflictResolver;
     private final Replacements replacements;
@@ -47,10 +47,12 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
     public GatherReplacementsVisitor(NamesAndDocsDatabase namesAndDocs,
                                      boolean enableJavadoc,
+                                     boolean enableParameters,
                                      @Nullable UnaryOperator<String> conflictResolver,
                                      Replacements replacements) {
         this.namesAndDocs = namesAndDocs;
         this.enableJavadoc = enableJavadoc;
+        this.enableParameters = enableParameters;
         this.conflictResolver = conflictResolver;
         this.replacements = replacements;
     }
@@ -138,44 +140,49 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     // implications for the field names.
                     if (paramData != null && paramData.getName() != null && !PsiHelper.isRecordConstructor(psiMethod)) {
                         var paramName = namer.apply(paramData.getName());
+                        if (enableParameters) {
+                            // We cannot rename a parameter to name that was already taken in this scope
+                            if (activeNames.contains(paramName)) {
+                                // If we have no conflict resolver then we simply don't try to rename this parameter
+                                if (conflictResolver == null) {
+                                    parameterOrder.add(psiParameter.getName());
+                                    continue;
+                                }
 
-                        // We cannot rename a parameter to name that was already taken in this scope
-                        if (activeNames.contains(paramName)) {
-                            // If we have no conflict resolver then we simply don't try to rename this parameter
-                            if (conflictResolver == null) {
-                                parameterOrder.add(psiParameter.getName());
-                                continue;
+                                // Keep applying the conflict resolver until the name is no longer used
+                                while (activeNames.contains(paramName)) {
+                                    paramName = conflictResolver.apply(paramName);
+                                }
                             }
 
-                            // Keep applying the conflict resolver until the name is no longer used
-                            while (activeNames.contains(paramName)) {
-                                paramName = conflictResolver.apply(paramName);
-                            }
+                            // Replace parameters within the method body
+                            activeParameters.put(psiParameter, paramName);
+                            activeNames.add(paramName);
+
+                            // Find and replace the parameter identifier
+                            replacements.replace(psiParameter.getNameIdentifier(), paramName);
+
+                            // Record the replacement for remapping existing Javadoc @param tags
+                            renamedParameters.put(psiParameter.getName(), paramName);
+
+                            hadReplacements = true;
+
+                            parameterOrder.add(paramName);
+                        } else {
+                            parameterOrder.add(psiParameter.getName());
                         }
-
-                        // Replace parameters within the method body
-                        activeParameters.put(psiParameter, paramName);
-                        activeNames.add(paramName);
-
-                        // Find and replace the parameter identifier
-                        replacements.replace(psiParameter.getNameIdentifier(), paramName);
-
-                        // Record the replacement for remapping existing Javadoc @param tags
-                        renamedParameters.put(psiParameter.getName(), paramName);
-
-                        hadReplacements = true;
-
-                        parameterOrder.add(paramName);
                     } else {
                         parameterOrder.add(psiParameter.getName());
                     }
 
                     // Optionally provide parameter javadocs
                     if (paramData != null && paramData.getJavadoc() != null) {
-                        parameterJavadoc.put(
-                                Objects.requireNonNullElse(paramData.getName(), psiParameter.getName()),
-                                paramData.getJavadoc()
-                        );
+                        // If parameter renaming is disabled, always use the source name
+                        if (enableParameters && paramData.getName() != null) {
+                            parameterJavadoc.put(paramData.getName(), paramData.getJavadoc());
+                        } else {
+                            parameterJavadoc.put(psiParameter.getName(), paramData.getJavadoc());
+                        }
                     }
                 }
 
@@ -207,7 +214,7 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
                     return;
                 }
             }
-        } else if (element instanceof PsiReferenceExpression refExpr && refExpr.getReferenceNameElement() != null) {
+        } else if (enableParameters && element instanceof PsiReferenceExpression refExpr && refExpr.getReferenceNameElement() != null) {
             for (var entry : activeParameters.entrySet()) {
                 if (refExpr.isReferenceTo(entry.getKey())) {
                     replacements.replace(refExpr.getReferenceNameElement(), entry.getValue());

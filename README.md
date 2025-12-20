@@ -60,11 +60,11 @@ Usage: jst [-hV] [--debug] [--in-format=<inputFormat>] [--libraries-list=<librar
            [--max-queue-depth=<maxQueueDepth>] [--out-format=<outputFormat>]
            [--problems-report=<problemsReport>] [--classpath=<addToClasspath>]...
            [--ignore-prefix=<ignoredPrefixes>]... [--enable-parchment
-           --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc]
-           [--parchment-conflict-prefix=<conflictPrefix>]] [--enable-accesstransformers
-           --access-transformer=<atFiles> [--access-transformer=<atFiles>]...
-           [--access-transformer-validation=<validation>]] [--enable-interface-injection
-           [--interface-injection-stubs=<stubOut>]
+           --parchment-mappings=<mappingsPath> [--[no-]parchment-javadoc] [--[no-]
+           parchment-parameters] [--parchment-conflict-prefix=<conflictPrefix>]]
+           [--enable-accesstransformers --access-transformer=<atFiles>
+           [--access-transformer=<atFiles>]... [--access-transformer-validation=<validation>]]
+           [--enable-interface-injection [--interface-injection-stubs=<stubOut>]
            [--interface-injection-marker=<annotationMarker>]
            [--interface-injection-data=<paths>]...] [--enable-unpick [--unpick-data=<paths>]...]
            INPUT OUTPUT
@@ -104,6 +104,8 @@ Plugin - parchment
                            Whether Parchment javadocs should be applied
       --parchment-mappings=<mappingsPath>
                            The location of the Parchment mappings file
+      --[no-]parchment-parameters
+                           Whether Parchment parameters should be applied
 Plugin - accesstransformers
       --access-transformer=<atFiles>
 
