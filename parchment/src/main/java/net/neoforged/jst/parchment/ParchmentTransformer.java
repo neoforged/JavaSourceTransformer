@@ -26,6 +26,14 @@ public class ParchmentTransformer implements SourceTransformer {
     )
     public boolean enableJavadoc = true;
 
+    @CommandLine.Option(
+            names = "--parchment-parameters",
+            description = "Whether Parchment parameter names should be applied",
+            negatable = true,
+            fallbackValue = "true"
+    )
+    public boolean enableParameters = true;
+
     @CommandLine.Option(names = "--parchment-conflict-prefix", description = "Apply the prefix specified if a Parchment parameter name conflicts with existing variable names")
     public String conflictPrefix;
 
@@ -56,7 +64,7 @@ public class ParchmentTransformer implements SourceTransformer {
 
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
-        var visitor = new GatherReplacementsVisitor(namesAndDocs, enableJavadoc, conflictResolver, replacements);
+        var visitor = new GatherReplacementsVisitor(namesAndDocs, enableJavadoc, enableParameters, conflictResolver, replacements);
         visitor.visitElement(psiFile);
     }
 
