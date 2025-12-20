@@ -169,9 +169,6 @@ class GatherReplacementsVisitor extends PsiRecursiveElementVisitor {
 
                             parameterOrder.add(paramName);
                         } else {
-                            // Remap the existing Javadoc @param tags to the param names present in the source
-                            renamedParameters.put(paramName, psiParameter.getName());
-                            
                             parameterOrder.add(psiParameter.getName());
                         }
                     } else {
