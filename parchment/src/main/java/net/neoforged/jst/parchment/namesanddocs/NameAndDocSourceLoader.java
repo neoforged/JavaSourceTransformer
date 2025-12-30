@@ -2,7 +2,6 @@ package net.neoforged.jst.parchment.namesanddocs;
 
 import net.neoforged.jst.parchment.namesanddocs.srgutils.MappingFileDatabase;
 import net.neoforged.jst.parchment.namesanddocs.parchment.ParchmentDatabase;
-import net.neoforged.srgutils.INamedMappingFile;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;

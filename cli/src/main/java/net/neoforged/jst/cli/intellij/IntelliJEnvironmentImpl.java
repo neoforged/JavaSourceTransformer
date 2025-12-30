@@ -23,16 +23,11 @@ import com.intellij.pom.java.InternalPersistentJavaLanguageLevelReaderService;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaModuleSystem;
 import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiAnnotation;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementFinder;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
 import com.intellij.psi.PsiManager;
-import com.intellij.psi.PsiModifierListOwner;
 import com.intellij.psi.PsiNameHelper;
-import com.intellij.psi.PsiNameValuePair;
 import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.impl.JavaClassSupersImpl;
 import com.intellij.psi.impl.PsiElementFinderImpl;
@@ -43,15 +38,12 @@ import com.intellij.psi.impl.source.tree.TreeGenerator;
 import com.intellij.psi.util.JavaClassSupers;
 import net.neoforged.jst.api.IntelliJEnvironment;
 import net.neoforged.jst.api.Logger;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Objects;
 
 public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseable {
