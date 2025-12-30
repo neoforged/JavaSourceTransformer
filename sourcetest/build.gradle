@@ -1,0 +1,11 @@
+/**
+ * This project only serves to run the application with all plugins from IntelliJ
+ * while being able to step into original sources.
+ */
+dependencies {
+    implementation(project(':cli'))
+    implementation(project(':accesstransformers'))
+    implementation(project(':interfaceinjection'))
+    implementation(project(':parchment'))
+    implementation(project(':unpick'))
+}

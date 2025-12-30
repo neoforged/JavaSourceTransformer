@@ -8,7 +8,6 @@ import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.javadoc.PsiDocToken;
 import net.neoforged.jst.api.PsiHelper;
-import net.neoforged.jst.api.Replacement;
 import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.Nullable;
 

@@ -1,5 +1,6 @@
 package net.neoforged.jst.cli.intellij;
 
+import com.intellij.codeInsight.ExternalAnnotationsManager;
 import com.intellij.core.CoreApplicationEnvironment;
 import com.intellij.core.JavaCoreApplicationEnvironment;
 import com.intellij.core.JavaCoreProjectEnvironment;
@@ -153,6 +154,7 @@ public class IntelliJEnvironmentImpl implements IntelliJEnvironment, AutoCloseab
      */
     private void initProjectExtensionsAndServices(MockProject project) {
         project.registerService(PsiNameHelper.class, PsiNameHelperImpl.class);
+        project.registerService(ExternalAnnotationsManager.class, new MockExternalAnnotationsManager());
 
         var projectExtensions = project.getExtensionArea();
         CoreApplicationEnvironment.registerExtensionPoint(projectExtensions, PsiTreeChangePreprocessor.EP.getName(), PsiTreeChangePreprocessor.class);

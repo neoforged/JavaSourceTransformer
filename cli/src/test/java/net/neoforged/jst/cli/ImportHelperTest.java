@@ -1,10 +1,7 @@
 package net.neoforged.jst.cli;
 
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiJavaFile;
-import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiTreeUtil;
 import net.neoforged.jst.api.ImportHelper;
 import net.neoforged.jst.api.Logger;

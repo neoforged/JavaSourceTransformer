@@ -1,7 +1,6 @@
 package net.neoforged.jst.cli.io;
 
 import net.neoforged.jst.api.FileSink;
-import net.neoforged.jst.api.SourceTransformer;
 
 import java.io.IOException;
 import java.nio.file.Files;
