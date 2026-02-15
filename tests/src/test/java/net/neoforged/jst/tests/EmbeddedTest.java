@@ -365,6 +365,34 @@ public class EmbeddedTest {
             runInterfaceInjectionTest("nested_generic_stubs", tempDir);
         }
     }
+    
+    @Nested
+    class EnumExtension {
+        @Test
+        void testSimpleExtension() throws Exception {
+            runEnumExtensionTest("simple_extension", tempDir);
+        }
+        
+        @Test
+        void testStubs() throws Exception {
+            runEnumExtensionTest("stubs", tempDir);
+        }
+        
+        @Test
+        void testInnerStubs() throws Exception {
+            runEnumExtensionTest("inner_stubs", tempDir);
+        }
+        
+        @Test
+        void testMethodParameters() throws Exception {
+            runEnumExtensionTest("method_parameters", tempDir);
+        }
+        
+        @Test
+        void testConstantParameters() throws Exception {
+            runEnumExtensionTest("constant_parameters", tempDir);
+        }
+    }
 
     @Nested
     class Unpick {
@@ -421,6 +449,22 @@ public class EmbeddedTest {
         var inputPath = testDir.resolve("injectedinterfaces.json");
 
         var args = new ArrayList<>(Arrays.asList("--enable-interface-injection", "--interface-injection-stubs", stub.toAbsolutePath().toString(), "--interface-injection-data", inputPath.toString()));
+        args.addAll(Arrays.asList(additionalArgs));
+
+        runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));
+
+        if (Files.exists(testDir.resolve("expected_stub"))) {
+            assertZipEqualsDir(stub, testDir.resolve("expected_stub"));
+        }
+    }
+
+    protected final void runEnumExtensionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {
+        var stub = tempDir.resolve("jst-" + testDirName + "-stub.jar");
+        testDirName = "enumextension/" + testDirName;
+        var testDir = testDataRoot.resolve(testDirName);
+        var inputPath = testDir.resolve("enumextensions.json");
+
+        var args = new ArrayList<>(Arrays.asList("--enable-enum-extensions", "--enum-extensions-stubs", stub.toAbsolutePath().toString(), "--enum-extensions-data", inputPath.toString()));
         args.addAll(Arrays.asList(additionalArgs));
 
         runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));

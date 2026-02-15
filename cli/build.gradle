@@ -33,6 +33,7 @@ dependencies {
 
     include project(":parchment")
     include project(":accesstransformers")
+    include project(":enumextensions")
     include project(':interfaceinjection')
     include project(':unpick')
 
