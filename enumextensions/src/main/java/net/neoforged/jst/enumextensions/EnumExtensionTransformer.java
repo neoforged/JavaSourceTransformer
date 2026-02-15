@@ -31,13 +31,22 @@ public class EnumExtensionTransformer implements SourceTransformer {
     @CommandLine.Option(names = "--enum-extensions-data", description = "The paths to read enum extension JSON files from")
     public List<Path> paths = new ArrayList<>();
 
+    @Nullable
+    @CommandLine.Option(names = "--enum-extensions-marker", description = "The name (binary representation) of an annotation to use as a marker for extended enum entries")
+    public String annotationMarker;
+
     private MultiMap<String, ExtensionPrototype> extensions;
     private StubStore stubs;
+    private String marker;
 
     @Override
     public void beforeRun(TransformContext context) {
         extensions = new MultiMap<>();
         stubs = new StubStore(context.environment().getPsiFacade());
+
+        if (annotationMarker != null) {
+            marker = annotationMarker.replace('/', '.').replace('$', '.');
+        }
 
         for (Path path : paths) {
             try {
@@ -150,6 +159,6 @@ public class EnumExtensionTransformer implements SourceTransformer {
 
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
-        new EnumExtensionVisitor(replacements, extensions, stubs, null).visitFile(psiFile);
+        new EnumExtensionVisitor(replacements, extensions, stubs, marker).visitFile(psiFile);
     }
 }

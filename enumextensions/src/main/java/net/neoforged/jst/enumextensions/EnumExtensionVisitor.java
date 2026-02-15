@@ -104,7 +104,7 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                             if (insertingAfterConstant.get()) {
                                 entry.append(',');
                             }
-                            entry.append("\n").append(" ".repeat(indent)).append(extension.name());
+                            entry.append("\n").append(" ".repeat(indent)).append(decorate(imports, extension.name()));
                             if (ctor != null && ctor.getParameterList().getParametersCount() > 0) {
                                 entry.append('(');
                                 switch (extension.parameters()) {
@@ -142,7 +142,7 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                                             var parameterType = TypeConversionUtil.erasure(
                                                     ctor.getParameterList().getParameters()[i].getType()
                                             );
-                                            String typeText = parameterType.accept(new PsiTypeVisitor<String>() {
+                                            String typeText = parameterType.accept(new PsiTypeVisitor<>() {
                                                 @Override
                                                 public String visitPrimitiveType(@NotNull PsiPrimitiveType primitiveType) {
                                                     return primitiveType.getCanonicalText();
@@ -193,11 +193,10 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
         return helper == null ? fqn : helper.importClass(fqn);
     }
 
-    // TODO: get this working
-    private String decorate(@Nullable ImportHelper helper, String iface) {
+    private String decorate(@Nullable ImportHelper helper, String entry) {
         if (marker == null) {
-            return iface;
+            return entry;
         }
-        return "@" + (helper == null ? marker : helper.importClass(marker)) + " " + iface;
+        return "@" + (helper == null ? marker : helper.importClass(marker)) + " " + entry;
     }
 }

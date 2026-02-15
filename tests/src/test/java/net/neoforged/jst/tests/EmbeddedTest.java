@@ -392,6 +392,11 @@ public class EmbeddedTest {
         void testConstantParameters() throws Exception {
             runEnumExtensionTest("constant_parameters", tempDir);
         }
+        
+        @Test
+        void testExtensionMarker() throws Exception {
+            runEnumExtensionTest("extension_marker", tempDir, "--enum-extensions-marker", "com/markers/ExtensionMarker");
+        }
     }
 
     @Nested
