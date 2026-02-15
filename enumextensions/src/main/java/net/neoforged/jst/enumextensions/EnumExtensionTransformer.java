@@ -35,9 +35,14 @@ public class EnumExtensionTransformer implements SourceTransformer {
     @CommandLine.Option(names = "--enum-extensions-marker", description = "The name (binary representation) of an annotation to use as a marker for extended enum entries")
     public String annotationMarker;
 
+    @Nullable
+    @CommandLine.Option(names = "--enum-extensions-required-interface", description = "The name (binary representation) of an interface to enforce that extendeable enums implement")
+    public String requiredInterface;
+
     private MultiMap<String, ExtensionPrototype> extensions;
     private StubStore stubs;
     private String marker;
+    private String requiredInterfaceFqn;
 
     @Override
     public void beforeRun(TransformContext context) {
@@ -46,6 +51,10 @@ public class EnumExtensionTransformer implements SourceTransformer {
 
         if (annotationMarker != null) {
             marker = annotationMarker.replace('/', '.').replace('$', '.');
+        }
+        
+        if (requiredInterface != null) {
+            requiredInterfaceFqn = requiredInterface.replace('/', '.').replace('$', '.');
         }
 
         for (Path path : paths) {
@@ -159,6 +168,6 @@ public class EnumExtensionTransformer implements SourceTransformer {
 
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
-        new EnumExtensionVisitor(replacements, extensions, stubs, marker).visitFile(psiFile);
+        new EnumExtensionVisitor(replacements, extensions, stubs, marker, requiredInterfaceFqn).visitFile(psiFile);
     }
 }

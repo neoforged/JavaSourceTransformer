@@ -1,13 +1,16 @@
 package net.neoforged.jst.enumextensions;
 
+import com.intellij.lang.jvm.JvmModifier;
 import com.intellij.psi.PsiArrayType;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiEnumConstant;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiJavaCodeReferenceElement;
 import com.intellij.psi.PsiPrimitiveType;
 import com.intellij.psi.PsiRecursiveElementVisitor;
+import com.intellij.psi.PsiReference;
 import com.intellij.psi.PsiTypeVisitor;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.ClassUtil;
@@ -19,12 +22,14 @@ import net.neoforged.jst.api.Replacements;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
     private final Replacements replacements;
@@ -33,12 +38,16 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
 
     @Nullable
     private final String marker;
+    
+    @Nullable
+    private final String requiredInterface;
 
-    EnumExtensionVisitor(Replacements replacements, MultiMap<String, ExtensionPrototype> extensions, StubStore stubs, @Nullable String marker) {
+    EnumExtensionVisitor(Replacements replacements, MultiMap<String, ExtensionPrototype> extensions, StubStore stubs, @Nullable String marker, @Nullable String requiredInterface) {
         this.replacements = replacements;
         this.extensions = extensions;
         this.stubs = stubs;
         this.marker = marker;
+        this.requiredInterface = requiredInterface;
     }
 
     @Override
@@ -66,6 +75,20 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
         // We cannot enum-extend things that aren't enums
         if (targets.isEmpty() || !psiClass.isEnum()) {
             return;
+        }
+        
+        if (psiClass.hasModifier(JvmModifier.ABSTRACT)) {
+            throw new IllegalArgumentException("Cannot extend abstract enum " + psiClass.getQualifiedName());
+        }
+        
+        if (requiredInterface != null) {
+            // We check the implements list too in case the required interface isn't present on the classpath
+            if (Stream.concat(
+                    Arrays.stream(psiClass.getInterfaces()).map(PsiClass::getQualifiedName),
+                    Arrays.stream(psiClass.getImplementsList().getReferenceElements()).map(PsiJavaCodeReferenceElement::getQualifiedName)
+            ).noneMatch(requiredInterface::equals)) {
+                throw new IllegalArgumentException("Enum " + psiClass.getQualifiedName() + " must implement " + requiredInterface + " to be extended");
+            }
         }
 
         var imports = ImportHelper.get(psiClass.getContainingFile());
