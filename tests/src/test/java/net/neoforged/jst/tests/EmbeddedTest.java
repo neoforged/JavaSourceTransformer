@@ -397,10 +397,15 @@ public class EmbeddedTest {
         void testExtensionMarker() throws Exception {
             runEnumExtensionTest("extension_marker", tempDir, "--enum-extensions-marker", "com/markers/ExtensionMarker");
         }
-        
+
         @Test
         void testRequiredInterface() throws Exception {
             runEnumExtensionTest("required_interface", tempDir, "--enum-extensions-required-interface", "com/example/IExtensibleEnum");
+        }
+
+        @Test
+        void testMultipleConstructors() throws Exception {
+            runEnumExtensionTest("multiple_constructors", tempDir);
         }
     }
 

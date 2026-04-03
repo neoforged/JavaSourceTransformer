@@ -2,7 +2,7 @@ package net.neoforged.jst.enumextensions;
 
 import java.util.List;
 
-public record ExtensionPrototype(
+record ExtensionPrototype(
         String name,
         String ctorDescriptor,
         EnumParameters parameters

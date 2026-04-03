@@ -8,9 +8,10 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiEnumConstant;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaCodeReferenceElement;
+import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiPrimitiveType;
 import com.intellij.psi.PsiRecursiveElementVisitor;
-import com.intellij.psi.PsiReference;
+import com.intellij.psi.PsiType;
 import com.intellij.psi.PsiTypeVisitor;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.ClassUtil;
@@ -116,17 +117,20 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
             indent = 4;
         }
         
-        var ctor = psiClass.getConstructors().length > 0 ? psiClass.getConstructors()[0] : null;
-        
         replacements.insertAfter(
                 toInsertAfter,
-                targets.stream()
+                (insertingAfterConstant.get() ? "," : "") + targets.stream()
                         .sorted(Comparator.comparing(ExtensionPrototype::name))
                         .map(extension -> {
-                            var entry = new StringBuilder();
-                            if (insertingAfterConstant.get()) {
-                                entry.append(',');
+                            PsiMethod ctor = null;
+                            for (var ctorCandidate : psiClass.getConstructors()) {
+                                var descriptor = ClassUtil.getAsmMethodSignature(ctorCandidate);
+                                if (extension.ctorDescriptor().equals(descriptor)) {
+                                    ctor = ctorCandidate;
+                                    break;
+                                }
                             }
+                            var entry = new StringBuilder();
                             entry.append("\n").append(" ".repeat(indent)).append(decorate(imports, extension.name()));
                             if (ctor != null && ctor.getParameterList().getParametersCount() > 0) {
                                 entry.append('(');
@@ -153,7 +157,11 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                                             if (i > 0) {
                                                 entry.append(", ");
                                             }
-                                            entry.append(className).append('.').append(fieldName).append(".getParameter(").append(i).append(')');
+                                            var parameterType = TypeConversionUtil.erasure(
+                                                    ctor.getParameterList().getParameters()[i].getType()
+                                            );
+                                            String typeText = getTypeText(parameterType, imports);
+                                            entry.append("(").append(typeText).append(") ").append(className).append('.').append(fieldName).append(".getParameter(").append(i).append(')');
                                         }
                                     }
                                     case ExtensionPrototype.EnumParameters.MethodReference(var owner, var methodName) -> {
@@ -165,26 +173,7 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                                             var parameterType = TypeConversionUtil.erasure(
                                                     ctor.getParameterList().getParameters()[i].getType()
                                             );
-                                            String typeText = parameterType.accept(new PsiTypeVisitor<>() {
-                                                @Override
-                                                public String visitPrimitiveType(@NotNull PsiPrimitiveType primitiveType) {
-                                                    return primitiveType.getCanonicalText();
-                                                }
-
-                                                @Override
-                                                public String visitClassType(@NotNull PsiClassType classType) {
-                                                    PsiClass aClass = classType.resolve();
-                                                    if (aClass == null) {
-                                                        throw new IllegalArgumentException("Cannot find fully qualified name for type: " + classType.getCanonicalText());
-                                                    }
-                                                    return possiblyImport(imports, aClass.getQualifiedName());
-                                                }
-
-                                                @Override
-                                                public String visitArrayType(@NotNull PsiArrayType arrayType) {
-                                                    return arrayType.getComponentType().accept(this) + "[]";
-                                                }
-                                            });
+                                            String typeText = getTypeText(parameterType, imports);
                                             entry.append("(").append(typeText).append(") ").append(className).append('.').append(methodName).append("(").append(i).append(", ").append(typeText).append(".class)");
                                         }
                                     }
@@ -193,8 +182,31 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                             }
                             return entry.toString();
                         })
-                        .collect(Collectors.joining())
+                        .collect(Collectors.joining(","))
         );
+    }
+
+    private String getTypeText(PsiType parameterType, ImportHelper imports) {
+        return parameterType.accept(new PsiTypeVisitor<>() {
+            @Override
+            public String visitPrimitiveType(@NotNull PsiPrimitiveType primitiveType) {
+                return primitiveType.getCanonicalText();
+            }
+
+            @Override
+            public String visitClassType(@NotNull PsiClassType classType) {
+                PsiClass aClass = classType.resolve();
+                if (aClass == null) {
+                    throw new IllegalArgumentException("Cannot find fully qualified name for type: " + classType.getCanonicalText());
+                }
+                return possiblyImport(imports, aClass.getQualifiedName());
+            }
+
+            @Override
+            public String visitArrayType(@NotNull PsiArrayType arrayType) {
+                return arrayType.getComponentType().accept(this) + "[]";
+            }
+        });
     }
 
     private static String escape(String s){
