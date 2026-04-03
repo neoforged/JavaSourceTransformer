@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "enum": "Example",
+      "name": "EXTENSION",
+      "constructor": "(Ljava/lang/String;ILjava/lang/String;)V",
+      "parameters": [
+        "a", 500, "c"
+      ]
+    }
+  ]
+}

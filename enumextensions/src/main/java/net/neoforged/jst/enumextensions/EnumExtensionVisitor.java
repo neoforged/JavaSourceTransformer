@@ -1,6 +1,7 @@
 package net.neoforged.jst.enumextensions;
 
 import com.intellij.lang.jvm.JvmModifier;
+import com.intellij.lang.jvm.annotation.JvmAnnotationConstantValue;
 import com.intellij.psi.PsiArrayType;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassType;
@@ -27,7 +28,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -42,13 +43,21 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
     
     @Nullable
     private final String requiredInterface;
+    
+    @Nullable
+    private final String reserverCtorAnnotation;
+    
+    @Nullable
+    private final String indexedEnumAnnotation;
 
-    EnumExtensionVisitor(Replacements replacements, MultiMap<String, ExtensionPrototype> extensions, StubStore stubs, @Nullable String marker, @Nullable String requiredInterface) {
+    EnumExtensionVisitor(Replacements replacements, MultiMap<String, ExtensionPrototype> extensions, StubStore stubs, @Nullable String marker, @Nullable String requiredInterface, @Nullable String reserverCtorAnnotationFqn, @Nullable String indexedEnumAnnotationFqn) {
         this.replacements = replacements;
         this.extensions = extensions;
         this.stubs = stubs;
         this.marker = marker;
         this.requiredInterface = requiredInterface;
+        this.reserverCtorAnnotation = reserverCtorAnnotationFqn;
+        this.indexedEnumAnnotation = indexedEnumAnnotationFqn;
     }
 
     @Override
@@ -95,18 +104,23 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
         var imports = ImportHelper.get(psiClass.getContainingFile());
         
         var fields = psiClass.getFields();
-        AtomicBoolean insertingAfterConstant = new AtomicBoolean(false);
-        var toInsertAfter = IntStream.range(0, fields.length)
+        var insertAfterTargets =  IntStream.range(0, fields.length)
                 .mapToObj(i -> fields[fields.length - (1 + i)])
-                .filter(f -> f instanceof PsiEnumConstant)
+                .map(f -> f instanceof PsiEnumConstant psiEnumConstant ? psiEnumConstant : null)
+                .filter(Objects::nonNull)
                 // If there's args, we want to insert after the entire enum entry, not just the constant name
-                .map(f -> ((PsiEnumConstant)f).getArgumentList() instanceof PsiElement args ? args : f)
-                .findFirst()
-                .map(e -> {
-                    insertingAfterConstant.set(true);
-                    return e;
-                })
-                .orElse(Objects.requireNonNull(psiClass.getLBrace())); // If there's no existing enum entries, insert after the opening brace
+                .map(f -> f.getArgumentList() instanceof PsiElement args ? args : f)
+                .toList();
+        final PsiElement toInsertAfter;
+        final boolean insertingAfterConstant;
+        if (insertAfterTargets.isEmpty()) {
+            toInsertAfter = Objects.requireNonNull(psiClass.getLBrace());
+            insertingAfterConstant = false;
+        } else {
+            toInsertAfter = insertAfterTargets.getLast();
+            insertingAfterConstant = true;
+        }
+        var nextAvailableIndex = new AtomicInteger(insertAfterTargets.size());
 
         // Add 4 spaces of indent to indent the enum entry inside the class
         int indent;
@@ -117,9 +131,17 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
             indent = 4;
         }
         
+        final int indexedEnumIndexIdx;
+        if (indexedEnumAnnotation != null && psiClass.hasAnnotation(indexedEnumAnnotation)) {
+            var annotation = psiClass.getAnnotation(indexedEnumAnnotation);
+            indexedEnumIndexIdx = (int) ((JvmAnnotationConstantValue) annotation.getAttributes().getFirst().getAttributeValue()).getConstantValue();
+        } else {
+            indexedEnumIndexIdx = -1;
+        }
+        
         replacements.insertAfter(
                 toInsertAfter,
-                (insertingAfterConstant.get() ? "," : "") + targets.stream()
+                (insertingAfterConstant ? "," : "") + targets.stream()
                         .sorted(Comparator.comparing(ExtensionPrototype::name))
                         .map(extension -> {
                             PsiMethod ctor = null;
@@ -127,11 +149,15 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                                 var descriptor = ClassUtil.getAsmMethodSignature(ctorCandidate);
                                 if (extension.ctorDescriptor().equals(descriptor)) {
                                     ctor = ctorCandidate;
+                                    if (reserverCtorAnnotation != null && ctor.hasAnnotation(reserverCtorAnnotation)) {
+                                        throw new IllegalArgumentException("Constructor " + ctor.getName() + " in enum " + psiClass.getQualifiedName() + " is annotated with reserved constructor annotation " + reserverCtorAnnotation + " but is targeted for enum extension " + extension.name());
+                                    }
                                     break;
                                 }
                             }
                             var entry = new StringBuilder();
                             entry.append("\n").append(" ".repeat(indent)).append(decorate(imports, extension.name()));
+                            var entryIndex = nextAvailableIndex.getAndIncrement();
                             if (ctor != null && ctor.getParameterList().getParametersCount() > 0) {
                                 entry.append('(');
                                 switch (extension.parameters()) {
@@ -139,11 +165,17 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                                         if (params.size() != ctor.getParameterList().getParametersCount()) {
                                             throw new IllegalArgumentException("Parameter count mismatch for extension " + extension.name() + ": expected " + ctor.getParameterList().getParametersCount() + " but got " + params.size());
                                         }
-                                        for (var param : params) {
-                                            switch (param) {
-                                                case String s -> entry.append('"').append(escape(s)).append('"');
-                                                case Character c -> entry.append('\'').append(escape(c.toString())).append('\'');
-                                                case null, default -> entry.append(param);
+                                        for (int i = 0; i < params.size(); i++) {
+                                            var param = params.get(i);
+                                            if (indexedEnumIndexIdx == i) {
+                                                entry.append(entryIndex);
+                                            } else {
+                                                switch (param) {
+                                                    case String s -> entry.append('"').append(escape(s)).append('"');
+                                                    case Character c ->
+                                                            entry.append('\'').append(escape(c.toString())).append('\'');
+                                                    case null, default -> entry.append(param);
+                                                }
                                             }
                                             entry.append(", ");
                                         }
@@ -157,11 +189,15 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                                             if (i > 0) {
                                                 entry.append(", ");
                                             }
-                                            var parameterType = TypeConversionUtil.erasure(
-                                                    ctor.getParameterList().getParameters()[i].getType()
-                                            );
-                                            String typeText = getTypeText(parameterType, imports);
-                                            entry.append("(").append(typeText).append(") ").append(className).append('.').append(fieldName).append(".getParameter(").append(i).append(')');
+                                            if (indexedEnumIndexIdx == i) {
+                                                entry.append(entryIndex);
+                                            } else {
+                                                var parameterType = TypeConversionUtil.erasure(
+                                                        ctor.getParameterList().getParameters()[i].getType()
+                                                );
+                                                String typeText = getTypeText(parameterType, imports);
+                                                entry.append("(").append(typeText).append(") ").append(className).append('.').append(fieldName).append(".getParameter(").append(i).append(')');
+                                            }
                                         }
                                     }
                                     case ExtensionPrototype.EnumParameters.MethodReference(var owner, var methodName) -> {
@@ -170,11 +206,15 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
                                             if (i > 0) {
                                                 entry.append(", ");
                                             }
-                                            var parameterType = TypeConversionUtil.erasure(
-                                                    ctor.getParameterList().getParameters()[i].getType()
-                                            );
-                                            String typeText = getTypeText(parameterType, imports);
-                                            entry.append("(").append(typeText).append(") ").append(className).append('.').append(methodName).append("(").append(i).append(", ").append(typeText).append(".class)");
+                                            if (indexedEnumIndexIdx == i) {
+                                                entry.append(entryIndex);
+                                            } else {
+                                                var parameterType = TypeConversionUtil.erasure(
+                                                        ctor.getParameterList().getParameters()[i].getType()
+                                                );
+                                                String typeText = getTypeText(parameterType, imports);
+                                                entry.append("(").append(typeText).append(") ").append(className).append('.').append(methodName).append("(").append(i).append(", ").append(typeText).append(".class)");
+                                            }
                                         }
                                     }
                                 }

@@ -38,11 +38,21 @@ public class EnumExtensionTransformer implements SourceTransformer {
     @Nullable
     @CommandLine.Option(names = "--enum-extensions-required-interface", description = "The name (binary representation) of an interface to enforce that extendeable enums implement")
     public String requiredInterface;
+    
+    @Nullable
+    @CommandLine.Option(names = "--enum-extensions-reserved-constructor-annotation", description = "The name (binary representation) of an annotation annotating constructors that should not be used for extensions")
+    public String reservedConstructorAnnotation;
+    
+    @Nullable
+    @CommandLine.Option(names = "--enum-extensions-indexed-enum-annotation", description = "The name (binary representation) of an annotation annotating enums with an index parameter")
+    public String indexedEnumAnnotation;
 
     private MultiMap<String, ExtensionPrototype> extensions;
     private StubStore stubs;
     private String marker;
     private String requiredInterfaceFqn;
+    private String reserverCtorAnnotationFqn;
+    private String indexedEnumAnnotationFqn;
 
     @Override
     public void beforeRun(TransformContext context) {
@@ -55,6 +65,14 @@ public class EnumExtensionTransformer implements SourceTransformer {
         
         if (requiredInterface != null) {
             requiredInterfaceFqn = requiredInterface.replace('/', '.').replace('$', '.');
+        }
+        
+        if (reservedConstructorAnnotation != null) {
+            reserverCtorAnnotationFqn = reservedConstructorAnnotation.replace('/', '.').replace('$', '.');
+        }
+        
+        if (indexedEnumAnnotation != null) {
+            indexedEnumAnnotationFqn = indexedEnumAnnotation.replace('/', '.').replace('$', '.');
         }
 
         for (Path path : paths) {
@@ -168,6 +186,6 @@ public class EnumExtensionTransformer implements SourceTransformer {
 
     @Override
     public void visitFile(PsiFile psiFile, Replacements replacements) {
-        new EnumExtensionVisitor(replacements, extensions, stubs, marker, requiredInterfaceFqn).visitFile(psiFile);
+        new EnumExtensionVisitor(replacements, extensions, stubs, marker, requiredInterfaceFqn, reserverCtorAnnotationFqn, indexedEnumAnnotationFqn).visitFile(psiFile);
     }
 }

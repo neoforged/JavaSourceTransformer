@@ -407,6 +407,11 @@ public class EmbeddedTest {
         void testMultipleConstructors() throws Exception {
             runEnumExtensionTest("multiple_constructors", tempDir);
         }
+
+        @Test
+        void testIndexedEnum() throws Exception {
+            runEnumExtensionTest("indexed_enum", tempDir, "--enum-extensions-indexed-enum-annotation", "com/markers/IndexedEnum");
+        }
     }
 
     @Nested
