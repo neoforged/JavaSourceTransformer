@@ -121,12 +121,18 @@ Plugin - enum-extensions
                            Enable enum-extensions
       --enum-extensions-data=<paths>
                            The paths to read enum extension JSON files from
+      --enum-extensions-indexed-enum-annotation=<indexedEnumAnnotation>
+                           The name (binary representation) of an annotation annotating enums with
+                             an index parameter
       --enum-extensions-marker=<annotationMarker>
                            The name (binary representation) of an annotation to use as a marker for
                              extended enum entries
       --enum-extensions-required-interface=<requiredInterface>
                            The name (binary representation) of an interface to enforce that
                              extendeable enums implement
+      --enum-extensions-reserved-constructor-annotation=<reservedConstructorAnnotation>
+                           The name (binary representation) of an annotation annotating
+                             constructors that should not be used for extensions
       --enum-extensions-stubs=<stubOut>
                            The path to a zip to save reference stubs in
 Plugin - interface-injection
