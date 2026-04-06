@@ -104,8 +104,7 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
         var imports = ImportHelper.get(psiClass.getContainingFile());
         
         var fields = psiClass.getFields();
-        var insertAfterTargets =  IntStream.range(0, fields.length)
-                .mapToObj(i -> fields[fields.length - (1 + i)])
+        var insertAfterTargets =  Arrays.stream(fields)
                 .map(f -> f instanceof PsiEnumConstant psiEnumConstant ? psiEnumConstant : null)
                 .filter(Objects::nonNull)
                 // If there's args, we want to insert after the entire enum entry, not just the constant name
