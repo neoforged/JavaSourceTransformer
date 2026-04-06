@@ -134,7 +134,12 @@ class EnumExtensionVisitor extends PsiRecursiveElementVisitor {
         final int indexedEnumIndexIdx;
         if (indexedEnumAnnotation != null && psiClass.hasAnnotation(indexedEnumAnnotation)) {
             var annotation = psiClass.getAnnotation(indexedEnumAnnotation);
-            indexedEnumIndexIdx = (int) ((JvmAnnotationConstantValue) annotation.getAttributes().getFirst().getAttributeValue()).getConstantValue();
+            var attributes = annotation.getAttributes();
+            if (attributes.isEmpty()) {
+                indexedEnumIndexIdx = 0;
+            } else {
+                indexedEnumIndexIdx = (int) ((JvmAnnotationConstantValue) attributes.getFirst().getAttributeValue()).getConstantValue();
+            }
         } else {
             indexedEnumIndexIdx = -1;
         }
