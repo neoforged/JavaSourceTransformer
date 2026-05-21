@@ -86,16 +86,20 @@ class InjectInterfacesVisitor extends PsiRecursiveElementVisitor {
         if (implementsList.getChildren().length == 0) {
             StringBuilder text = new StringBuilder();
 
+            // The clause order is extends/implements first, then permits. So if the class does not have an implements clause
+            // but it has a permits clause, we must ensure we insert the implements clause before the permits clause
+            PsiElement nextClause = psiClass.getPermitsList() == null ? psiClass.getLBrace() : psiClass.getPermitsList();
+
             // `public class Cls{}` is valid, but we cannot inject the implements exactly next to the class name, so we need
             // to make sure that we have spacing
-            if (!(psiClass.getLBrace().getPrevSibling() instanceof PsiWhiteSpace)) {
+            if (!(nextClause.getPrevSibling() instanceof PsiWhiteSpace)) {
                 text.append(' ');
             }
             text.append(psiClass.isInterface() ? "extends" : "implements").append(' ');
             text.append(interfaceImplementation);
             text.append(' ');
 
-            replacements.insertBefore(psiClass.getLBrace(), text.toString());
+            replacements.insertBefore(nextClause, text.toString());
         } else {
             replacements.insertAfter(implementsList.getLastChild(), ", " + interfaceImplementation);
         }

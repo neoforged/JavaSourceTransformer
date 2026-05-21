@@ -331,6 +331,11 @@ public class EmbeddedTest {
         }
 
         @Test
+        void testClauseOrder() throws Exception {
+            runInterfaceInjectionTest("clause_order", tempDir);
+        }
+
+        @Test
         void testInterfaceTarget() throws Exception {
             runInterfaceInjectionTest("interface_target", tempDir);
         }
