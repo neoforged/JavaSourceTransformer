@@ -111,6 +111,26 @@ class MyClass {
                         }""");
     }
 
+    @Test
+    void testCannotImportNamesInFile() {
+        var helper = getImportHelper("""
+package com.test;
+
+class MyClass {
+    interface InnerClass {
+        interface SubInner {
+            
+        }
+    }
+}""");
+
+        assertFalse(helper.canImport("MyClass"));
+        assertFalse(helper.canImport("InnerClass"));
+        assertFalse(helper.canImport("SubInner"));
+
+        assertTrue(helper.canImport("UnrelatedClassName"));
+    }
+
     private ImportHelper getImportHelper(@Language("JAVA") String javaCode) {
         var file = parseSingleFile(javaCode);
         return new ImportHelper(file);

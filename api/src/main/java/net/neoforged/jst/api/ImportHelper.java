@@ -86,6 +86,18 @@ public class ImportHelper implements PostProcessReplacer {
                 }
             }
         }
+
+        // To avoid any ambiguity, we cannot import a class with the same name as any of the classes in the file
+        for (PsiClass topLevelClass : psiFile.getClasses()) {
+            markClassNamesAsUsed(topLevelClass);
+        }
+    }
+
+    private void markClassNamesAsUsed(PsiClass topLevelClass) {
+        importedNames.put(topLevelClass.getName(), topLevelClass.getQualifiedName());
+        for (PsiClass inner : topLevelClass.getAllInnerClasses()) {
+            markClassNamesAsUsed(inner);
+        }
     }
 
     @VisibleForTesting
