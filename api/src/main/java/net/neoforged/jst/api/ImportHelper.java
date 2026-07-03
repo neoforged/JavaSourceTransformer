@@ -87,16 +87,20 @@ public class ImportHelper implements PostProcessReplacer {
             }
         }
 
+        Set<PsiClass> visitedClasses = new HashSet<>();
         // To avoid any ambiguity, we cannot import a class with the same name as any of the classes in the file
         for (PsiClass topLevelClass : psiFile.getClasses()) {
-            markClassNamesAsUsed(topLevelClass);
+            markClassNamesAsUsed(topLevelClass, visitedClasses);
         }
     }
 
-    private void markClassNamesAsUsed(PsiClass topLevelClass) {
+    private void markClassNamesAsUsed(PsiClass topLevelClass, Set<PsiClass> visitedClasses) {
+        // If an inner class is a children of the containing class, the recursive call below would get stuck in a loop because getAllInnerClasses will return the current class again
+        if (!visitedClasses.add(topLevelClass)) return;
+
         importedNames.put(topLevelClass.getName(), topLevelClass.getQualifiedName());
         for (PsiClass inner : topLevelClass.getAllInnerClasses()) {
-            markClassNamesAsUsed(inner);
+            markClassNamesAsUsed(inner, visitedClasses);
         }
     }
 
