@@ -75,6 +75,8 @@ Usage: jst [-hV] [--debug] [--in-format=<inputFormat>] [--libraries-list=<librar
                            Additional classpath entries to use. Is combined with --libraries-list.
       --debug              Print additional debugging information
   -h, --help               Show this help message and exit.
+      --hidden-prefix=<hiddenPrefixes>
+                           Do not process or emit paths that start with any of these prefixes.
       --ignore-prefix=<ignoredPrefixes>
                            Do not apply transformations to paths that start with any of these
                              prefixes.
