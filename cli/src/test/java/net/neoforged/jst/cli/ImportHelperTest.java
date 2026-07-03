@@ -122,11 +122,18 @@ class MyClass {
             
         }
     }
+}
+
+class AnotherClass {
+    class C extends AnotherClass {
+        
+    }
 }""");
 
         assertFalse(helper.canImport("MyClass"));
         assertFalse(helper.canImport("InnerClass"));
         assertFalse(helper.canImport("SubInner"));
+        assertFalse(helper.canImport("C"));
 
         assertTrue(helper.canImport("UnrelatedClassName"));
     }
