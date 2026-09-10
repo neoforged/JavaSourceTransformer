@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "enum": "Example",
+      "name": "EXTENSION",
+      "constructor": "(BSIJFDCZLjava/lang/String;Ljava/lang/Object;)V",
+      "parameters": [
+        0, 0, 0, 0, 0, 0, "c", false, "string", null
+      ]
+    }
+  ]
+}

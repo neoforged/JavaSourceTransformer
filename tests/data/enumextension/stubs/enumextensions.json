@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "enum": "Example",
+      "name": "A",
+      "constructor": "(I)V",
+      "parameters": {
+        "class": "RootStub",
+        "field": "PROXY"
+      }
+    },
+    {
+      "enum": "Example",
+      "name": "C",
+      "constructor": "(I)V",
+      "parameters": {
+        "class": "com/example/Stub2",
+        "field": "PROXY"
+      }
+    },
+    {
+      "enum": "Example",
+      "name": "B",
+      "constructor": "(I)V",
+      "parameters": {
+        "class": "com/example/Stub1",
+        "field": "PROXY"
+      }
+    }
+  ]
+}

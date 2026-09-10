@@ -1,0 +1,8 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    implementation project(':api')
+    implementation "com.google.code.gson:gson:${project.gson_version}"
+}
