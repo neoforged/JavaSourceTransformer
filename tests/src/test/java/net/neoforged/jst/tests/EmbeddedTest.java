@@ -424,6 +424,14 @@ public class EmbeddedTest {
         }
     }
 
+    @Nested
+    class GenericsWidening {
+        @Test
+        void testSimpleWidening() throws Exception {
+            runGenericsWideningTest("simple_widening");
+        }
+    }
+
     protected final void runInterfaceInjectionTest(String testDirName, Path tempDir, String... additionalArgs) throws Exception {
         var stub = tempDir.resolve("jst-" + testDirName + "-stub.jar");
         testDirName = "interfaceinjection/" + testDirName;
@@ -446,6 +454,17 @@ public class EmbeddedTest {
         var inputPath = testDir.resolve("def.unpick");
 
         var args = new ArrayList<>(Arrays.asList("--enable-unpick", "--unpick-data", inputPath.toString()));
+        args.addAll(Arrays.asList(additionalArgs));
+
+        runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));
+    }
+
+    protected final void runGenericsWideningTest(String testDirName, String... additionalArgs) throws Exception {
+        testDirName = "genericswidening/" + testDirName;
+        var testDir = testDataRoot.resolve(testDirName);
+        var inputPath = testDir.resolve("genericswideners.json");
+
+        var args = new ArrayList<>(Arrays.asList("--enable-generics-widening", "--generics-widening-data", inputPath.toString()));
         args.addAll(Arrays.asList(additionalArgs));
 
         runTest(testDirName, UnaryOperator.identity(), args.toArray(String[]::new));

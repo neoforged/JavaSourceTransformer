@@ -1,0 +1,7 @@
+{
+    "net/me/Example": {
+        "methodName": "contains",
+        "methodDescriptor": "(Ljava/util/Set;Ljava/lang/Object;)Z",
+        "parameterType": "Ljava/util/Set;"
+    }
+}
