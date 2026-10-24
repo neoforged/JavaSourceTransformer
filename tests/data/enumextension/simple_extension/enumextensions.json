@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "enum": "net/me/Example",
+      "name": "EXTENSION",
+      "constructor": "()V",
+      "parameters": []
+    },
+    {
+      "enum": "net/me/Example2",
+      "name": "EXTENSION",
+      "constructor": "()V",
+      "parameters": []
+    }
+  ]
+}

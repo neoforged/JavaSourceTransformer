@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "enum": "Example",
+      "name": "EXTENSION",
+      "constructor": "(I[ILjava/lang/Object;[Ljava/lang/Object;[[Ljava/lang/Object;)V",
+      "parameters": {
+        "class": "com/example/Stub",
+        "method": "getParameter"
+      }
+    }
+  ]
+}

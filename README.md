@@ -64,6 +64,9 @@ Usage: jst [-hV] [--debug] [--in-format=<inputFormat>] [--libraries-list=<librar
            parchment-parameters] [--parchment-conflict-prefix=<conflictPrefix>]]
            [--enable-accesstransformers --access-transformer=<atFiles>
            [--access-transformer=<atFiles>]... [--access-transformer-validation=<validation>]]
+           [--enable-enum-extensions [--enum-extensions-stubs=<stubOut>]
+           [--enum-extensions-data=<paths>]... [--enum-extensions-marker=<annotationMarker>]
+           [--enum-extensions-required-interface=<requiredInterface>]]
            [--enable-interface-injection [--interface-injection-stubs=<stubOut>]
            [--interface-injection-marker=<annotationMarker>]
            [--interface-injection-data=<paths>]...] [--enable-unpick [--unpick-data=<paths>]...]
@@ -105,7 +108,7 @@ Plugin - parchment
       --parchment-mappings=<mappingsPath>
                            The location of the Parchment mappings file
       --[no-]parchment-parameters
-                           Whether Parchment parameters should be applied
+                           Whether Parchment parameter names should be applied
 Plugin - accesstransformers
       --access-transformer=<atFiles>
 
@@ -113,6 +116,25 @@ Plugin - accesstransformers
                            The level of validation to use for ats
       --enable-accesstransformers
                            Enable accesstransformers
+Plugin - enum-extensions
+      --enable-enum-extensions
+                           Enable enum-extensions
+      --enum-extensions-data=<paths>
+                           The paths to read enum extension JSON files from
+      --enum-extensions-indexed-enum-annotation=<indexedEnumAnnotation>
+                           The name (binary representation) of an annotation annotating enums with
+                             an index parameter
+      --enum-extensions-marker=<annotationMarker>
+                           The name (binary representation) of an annotation to use as a marker for
+                             extended enum entries
+      --enum-extensions-required-interface=<requiredInterface>
+                           The name (binary representation) of an interface to enforce that
+                             extendeable enums implement
+      --enum-extensions-reserved-constructor-annotation=<reservedConstructorAnnotation>
+                           The name (binary representation) of an annotation annotating
+                             constructors that should not be used for extensions
+      --enum-extensions-stubs=<stubOut>
+                           The path to a zip to save reference stubs in
 Plugin - interface-injection
       --enable-interface-injection
                            Enable interface-injection

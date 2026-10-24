@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "enum": "Example",
+      "name": "EXTENSION1",
+      "constructor": "(I)V",
+      "parameters": {
+        "class": "com/example/Stub",
+        "method": "getParameter"
+      }
+    },
+    {
+      "enum": "Example",
+      "name": "EXTENSION2",
+      "constructor": "(J)V",
+      "parameters": {
+        "class": "com/example/Stub",
+        "method": "getParameter"
+      }
+    }
+  ]
+}

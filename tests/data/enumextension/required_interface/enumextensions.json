@@ -1,0 +1,10 @@
+{
+  "entries": [
+    {
+      "enum": "Example",
+      "name": "EXTENSION",
+      "constructor": "()V",
+      "parameters": []
+    }
+  ]
+}
