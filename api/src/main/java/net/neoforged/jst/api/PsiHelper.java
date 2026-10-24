@@ -163,9 +163,18 @@ public final class PsiHelper {
                 CachedValuesManager.getCachedValue(containingClass, () -> {
                     var map = new ObjectIntHashMap<PsiClass>();
                     int index = 0;
-                    for (var aClass : SyntaxTraverser.psiTraverser().withRoot(containingClass).postOrderDfsTraversal().filter(PsiClass.class)) {
+                    var traverser = SyntaxTraverser.psiTraverser()
+                            .withRoot(containingClass)
+                            // We only care about looking at the direct class children of the containing class
+                            // Only traverse children of either the containing class as root node (which itself is a PsiClass), or anything that isn't
+                            // a PsiClass; this skips traversal of the children of any nested PsiClass
+                            .expand(c -> c == containingClass || !(c instanceof PsiClass))
+                            .postOrderDfsTraversal()
+                            .filter(PsiClass.class);
+                    for (var aClass : traverser) {
                         // We're only interested in actual classes without qualified names (type parameters are an instance of PsiClass)
-                        if (!(aClass instanceof PsiTypeParameter) && aClass.getQualifiedName() == null) {
+                        // Avoid traversing the root node itself
+                        if (aClass != containingClass && !(aClass instanceof PsiTypeParameter) && aClass.getQualifiedName() == null) {
                             map.put(aClass, ++index);
                         }
                     }
