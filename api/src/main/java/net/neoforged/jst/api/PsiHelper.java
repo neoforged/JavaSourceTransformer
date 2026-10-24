@@ -173,7 +173,8 @@ public final class PsiHelper {
                             .filter(PsiClass.class);
                     for (var aClass : traverser) {
                         // We're only interested in actual classes without qualified names (type parameters are an instance of PsiClass)
-                        if (!(aClass instanceof PsiTypeParameter) && aClass.getQualifiedName() == null) {
+                        // Avoid traversing the root node itself
+                        if (aClass != containingClass && !(aClass instanceof PsiTypeParameter) && aClass.getQualifiedName() == null) {
                             map.put(aClass, ++index);
                         }
                     }
