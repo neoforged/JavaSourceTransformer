@@ -166,7 +166,7 @@ public final class PsiHelper {
                     var traverser = SyntaxTraverser.psiTraverser()
                             .withRoot(containingClass)
                             // We only care about looking at the direct class children of the containing class
-                            // Only traverse children of either the containing class as root note (which itself is a PsiClass), or anything that isn't
+                            // Only traverse children of either the containing class as root node (which itself is a PsiClass), or anything that isn't
                             // a PsiClass; this skips traversal of the children of any nested PsiClass
                             .expand(c -> c == containingClass || !(c instanceof PsiClass))
                             .postOrderDfsTraversal()
