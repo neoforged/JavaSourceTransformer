@@ -35,6 +35,7 @@ dependencies {
     include project(":accesstransformers")
     include project(':interfaceinjection')
     include project(':unpick')
+    include project(':genericswidening')
 
     testImplementation platform("org.junit:junit-bom:$junit_version")
     testImplementation 'org.junit.jupiter:junit-jupiter'
